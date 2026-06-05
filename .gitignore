@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.expo/
+.env
+
+backend/node_modules/
+backend/dist/
+backend/.env
+
+# macOS
+.DS_Store
+
+# Documentazione locale (non versionata)
+Hemora.pdf
