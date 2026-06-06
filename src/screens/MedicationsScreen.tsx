@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '../components/AppButton';
 import { Card } from '../components/Card';
@@ -9,11 +10,37 @@ import { useHemora } from '../context/HemoraContext';
 import { colors, spacing } from '../theme';
 
 export function MedicationsScreen() {
-  const { state, addMedication, removeMedication } = useHemora();
+  const { state, addMedication, removeMedication, saveDraft, loadDraft, clearDraft } = useHemora();
   const [medName, setMedName] = useState('');
   const [activeIngredient, setActiveIngredient] = useState('');
   const [dosage, setDosage] = useState('');
   const [medNotes, setMedNotes] = useState('');
+
+  useEffect(() => {
+    async function loadSavedDraft() {
+      const draft = await loadDraft('MedicationsScreen');
+      if (draft) {
+        setMedName(draft.medName || '');
+        setActiveIngredient(draft.activeIngredient || '');
+        setDosage(draft.dosage || '');
+        setMedNotes(draft.medNotes || '');
+      }
+    }
+    loadSavedDraft();
+  }, [loadDraft]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        saveDraft('MedicationsScreen', {
+          medName,
+          activeIngredient,
+          dosage,
+          medNotes,
+        });
+      };
+    }, [medName, activeIngredient, dosage, medNotes, saveDraft]),
+  );
 
   function submitMedication() {
     if (!medName.trim()) {
@@ -27,6 +54,7 @@ export function MedicationsScreen() {
       emergencyNotes: medNotes.trim(),
       relevantInEmergency: true,
     });
+    clearDraft('MedicationsScreen');
     setMedName('');
     setActiveIngredient('');
     setDosage('');

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '../components/AppButton';
 import { Card } from '../components/Card';
@@ -9,11 +10,37 @@ import { useHemora } from '../context/HemoraContext';
 import { colors, spacing } from '../theme';
 
 export function EmergencyContactsScreen() {
-  const { state, addEmergencyContact, removeEmergencyContact } = useHemora();
+  const { state, addEmergencyContact, removeEmergencyContact, saveDraft, loadDraft, clearDraft } = useHemora();
   const [contactName, setContactName] = useState('');
   const [contactRelation, setContactRelation] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
+
+  useEffect(() => {
+    async function loadSavedDraft() {
+      const draft = await loadDraft('EmergencyContactsScreen');
+      if (draft) {
+        setContactName(draft.contactName || '');
+        setContactRelation(draft.contactRelation || '');
+        setContactPhone(draft.contactPhone || '');
+        setContactEmail(draft.contactEmail || '');
+      }
+    }
+    loadSavedDraft();
+  }, [loadDraft]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        saveDraft('EmergencyContactsScreen', {
+          contactName,
+          contactRelation,
+          contactPhone,
+          contactEmail,
+        });
+      };
+    }, [contactName, contactRelation, contactPhone, contactEmail, saveDraft]),
+  );
 
   function submitContact() {
     if (!contactName.trim() || !contactPhone.trim()) {
@@ -26,6 +53,7 @@ export function EmergencyContactsScreen() {
       phone: contactPhone.trim(),
       email: contactEmail.trim(),
     });
+    clearDraft('EmergencyContactsScreen');
     setContactName('');
     setContactRelation('');
     setContactPhone('');

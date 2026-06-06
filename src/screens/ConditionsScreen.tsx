@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
 import { AppButton } from '../components/AppButton';
 import { Card } from '../components/Card';
@@ -12,12 +13,40 @@ import { colors, spacing } from '../theme';
 const SEVERITIES: ConditionSeverity[] = ['Bassa', 'Media', 'Alta'];
 
 export function ConditionsScreen() {
-  const { state, addCondition, removeCondition } = useHemora();
+  const { state, addCondition, removeCondition, saveDraft, loadDraft, clearDraft } = useHemora();
   const [conditionName, setConditionName] = useState('');
   const [conditionCategory, setConditionCategory] = useState('Altro');
   const [conditionSeverity, setConditionSeverity] = useState<ConditionSeverity>('Media');
   const [conditionIsAllergy, setConditionIsAllergy] = useState(false);
   const [conditionNotes, setConditionNotes] = useState('');
+
+  useEffect(() => {
+    async function loadSavedDraft() {
+      const draft = await loadDraft('ConditionsScreen');
+      if (draft) {
+        setConditionName(draft.conditionName || '');
+        setConditionCategory(draft.conditionCategory || 'Altro');
+        setConditionSeverity(draft.conditionSeverity || 'Media');
+        setConditionIsAllergy(draft.conditionIsAllergy || false);
+        setConditionNotes(draft.conditionNotes || '');
+      }
+    }
+    loadSavedDraft();
+  }, [loadDraft]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        saveDraft('ConditionsScreen', {
+          conditionName,
+          conditionCategory,
+          conditionSeverity,
+          conditionIsAllergy,
+          conditionNotes,
+        });
+      };
+    }, [conditionName, conditionCategory, conditionSeverity, conditionIsAllergy, conditionNotes, saveDraft]),
+  );
 
   function submitCondition() {
     if (!conditionName.trim()) {
@@ -32,6 +61,7 @@ export function ConditionsScreen() {
       notes: conditionNotes.trim(),
       relevantInEmergency: true,
     });
+    clearDraft('ConditionsScreen');
     setConditionName('');
     setConditionCategory('Altro');
     setConditionSeverity('Media');

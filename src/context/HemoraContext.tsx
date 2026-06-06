@@ -62,6 +62,9 @@ type HemoraContextValue = {
   }) => Donation;
   bookDonation: (payload: { centerId: string; type: DonationType; dateTime: string }) => Booking;
   markNotificationsRead: () => void;
+  saveDraft: (screenName: string, data: Record<string, any>) => Promise<void>;
+  loadDraft: (screenName: string) => Promise<Record<string, any> | null>;
+  clearDraft: (screenName: string) => Promise<void>;
 };
 
 const HemoraContext = createContext<HemoraContextValue | null>(null);
@@ -270,6 +273,19 @@ export function HemoraProvider({ children }: PropsWithChildren) {
           ...current,
           notifications: current.notifications.map((item) => ({ ...item, read: true })),
         }));
+      },
+      async saveDraft(screenName, data) {
+        const draftKey = `@hemora/draft/${screenName}`;
+        await AsyncStorage.setItem(draftKey, JSON.stringify(data));
+      },
+      async loadDraft(screenName) {
+        const draftKey = `@hemora/draft/${screenName}`;
+        const raw = await AsyncStorage.getItem(draftKey);
+        return raw ? JSON.parse(raw) : null;
+      },
+      async clearDraft(screenName) {
+        const draftKey = `@hemora/draft/${screenName}`;
+        await AsyncStorage.removeItem(draftKey);
       },
     };
   }, [state, isReady]);
