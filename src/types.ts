@@ -110,4 +110,6 @@ export type HemoraState = {
   centers: CollectionCenter[];
   bookings: Booking[];
   notifications: EmergencyNotification[];
+  // Id dei promemoria "ora puoi donare" gia visti/letti (derivati dalle donazioni).
+  readDonationReminders: string[];
 };

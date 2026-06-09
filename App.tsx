@@ -1,5 +1,5 @@
 import 'react-native-gesture-handler';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { ActivityIndicator, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { HemoraProvider, useHemora } from './src/context/HemoraContext';
 import { MainTabs } from './src/navigation/MainTabs';
+import { syncDonationReminders } from './src/utils/pushNotifications';
 import { colors, spacing } from './src/theme';
 
 export type RootStackParamList = {
@@ -17,7 +18,7 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function RootNavigator() {
-  const { isReady } = useHemora();
+  const { isReady, state } = useHemora();
   const insets = useSafeAreaInsets();
   const networkState = Network.useNetworkState();
   const isOffline =
@@ -39,6 +40,13 @@ function RootNavigator() {
     }),
     []
   );
+
+  // Programma le notifiche push locali (una settimana prima e il giorno di
+  // idoneita) ogni volta che cambia lo storico donazioni.
+  useEffect(() => {
+    if (!isReady) return;
+    syncDonationReminders(state.donations);
+  }, [isReady, state.donations]);
 
   if (!isReady) {
     return (

@@ -15,6 +15,7 @@ import {
 import { fetchCollectionCenters, fetchEmergencyNotifications } from '../api/hemoraApi';
 import { emptyProfile, mockCenters, mockNotifications } from '../data/mockData';
 import { calculateNextEligibilityDate } from '../utils/donationEligibility';
+import { getDonationReminders } from '../utils/notifications';
 import { todayISO, uid } from '../utils/date';
 
 const STORAGE_KEY = '@hemora/state/v1';
@@ -26,6 +27,7 @@ const initialState: HemoraState = {
   centers: mockCenters,
   bookings: [],
   notifications: mockNotifications,
+  readDonationReminders: [],
 };
 
 type RegisterPayload = {
@@ -62,6 +64,7 @@ type HemoraContextValue = {
   }) => Donation;
   bookDonation: (payload: { centerId: string; type: DonationType; dateTime: string }) => Booking;
   markNotificationsRead: () => void;
+  markDonationReminderRead: (id: string) => void;
   saveDraft: (screenName: string, data: Record<string, any>) => Promise<void>;
   loadDraft: (screenName: string) => Promise<Record<string, any> | null>;
   clearDraft: (screenName: string) => Promise<void>;
@@ -102,6 +105,7 @@ export function HemoraProvider({ children }: PropsWithChildren) {
             ...parsed,
             centers: mergeCenters(parsed.centers),
             notifications: mergeNotifications(parsed.notifications),
+            readDonationReminders: parsed.readDonationReminders ?? [],
           });
         }
       } finally {
@@ -269,10 +273,26 @@ export function HemoraProvider({ children }: PropsWithChildren) {
         return booking;
       },
       markNotificationsRead() {
-        setState((current) => ({
-          ...current,
-          notifications: current.notifications.map((item) => ({ ...item, read: true })),
-        }));
+        setState((current) => {
+          const newReminderIds = getDonationReminders(current)
+            .map((reminder) => reminder.id)
+            .filter((id) => !current.readDonationReminders.includes(id));
+          return {
+            ...current,
+            notifications: current.notifications.map((item) => ({ ...item, read: true })),
+            readDonationReminders:
+              newReminderIds.length > 0
+                ? [...current.readDonationReminders, ...newReminderIds]
+                : current.readDonationReminders,
+          };
+        });
+      },
+      markDonationReminderRead(id) {
+        setState((current) =>
+          current.readDonationReminders.includes(id)
+            ? current
+            : { ...current, readDonationReminders: [...current.readDonationReminders, id] }
+        );
       },
       async saveDraft(screenName, data) {
         const draftKey = `@hemora/draft/${screenName}`;

@@ -17,7 +17,6 @@ import { DonationHistoryScreen } from '../screens/DonationHistoryScreen';
 import { DonationRegisterScreen } from '../screens/DonationRegisterScreen';
 import { DonationsHubScreen } from '../screens/DonationsHubScreen';
 import { EmergencyContactsScreen } from '../screens/EmergencyContactsScreen';
-import { EmergencyQrScreen } from '../screens/EmergencyQrScreen';
 import { ConditionsScreen } from '../screens/ConditionsScreen';
 import { MedicationsScreen } from '../screens/MedicationsScreen';
 import { OptionalDataScreen } from '../screens/OptionalDataScreen';
@@ -26,10 +25,9 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { colors, spacing } from '../theme';
 
 export type MainTabsParamList = {
+  Donazioni: undefined;
   Home: undefined;
   Profilo: undefined;
-  Donazioni: undefined;
-  Emergenza: undefined;
 };
 
 export type ProfileStackParamList = {
@@ -51,7 +49,8 @@ export type DonationsStackParamList = {
 
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
 const DonationsStack = createNativeStackNavigator<DonationsStackParamList>();
-const MAIN_TAB_ORDER = ['Home', 'Profilo', 'Donazioni', 'Emergenza'] as const;
+const MAIN_TAB_ORDER = ['Donazioni', 'Home', 'Profilo'] as const;
+const HOME_TAB_INDEX = MAIN_TAB_ORDER.indexOf('Home');
 const PROFILE_TAB_INDEX = MAIN_TAB_ORDER.indexOf('Profilo');
 const DONATIONS_TAB_INDEX = MAIN_TAB_ORDER.indexOf('Donazioni');
 
@@ -60,17 +59,15 @@ type MainTabName = (typeof MAIN_TAB_ORDER)[number];
 type NestedSection = Extract<MainTabName, 'Profilo' | 'Donazioni'>;
 
 const tabIcons: Record<MainTabName, { active: TabIconName; inactive: TabIconName; label: string }> = {
+  Donazioni: { active: 'water', inactive: 'water-outline', label: 'Donazioni' },
   Home: { active: 'home', inactive: 'home-outline', label: 'Home' },
   Profilo: { active: 'person', inactive: 'person-outline', label: 'Profilo' },
-  Donazioni: { active: 'water', inactive: 'water-outline', label: 'Donazioni' },
-  Emergenza: { active: 'qr-code', inactive: 'qr-code-outline', label: 'Emergenza' },
 };
 
 const tabAccessibilityLabels: Record<MainTabName, string> = {
+  Donazioni: 'Donazioni, storico e prenotazioni',
   Home: 'Home Hemora, riepilogo carta salvavita',
   Profilo: 'Profilo, modifica dati salvavita',
-  Donazioni: 'Donazioni, storico e prenotazioni',
-  Emergenza: 'Emergenza, QR offline salvavita',
 };
 
 function clampTabIndex(index: number) {
@@ -174,11 +171,11 @@ function IndependentNavigator({
 
 export function MainTabs() {
   const pagerRef = React.useRef<PagerView>(null);
-  const activeIndexRef = React.useRef(0);
+  const activeIndexRef = React.useRef(HOME_TAB_INDEX);
   const profileNavigationRef = React.useRef(createNavigationContainerRef<ProfileStackParamList>()).current;
   const donationsNavigationRef = React.useRef(createNavigationContainerRef<DonationsStackParamList>()).current;
-  const [activeIndex, setActiveIndexState] = React.useState(0);
-  const [visualIndex, setVisualIndexState] = React.useState(0);
+  const [activeIndex, setActiveIndexState] = React.useState(HOME_TAB_INDEX);
+  const [visualIndex, setVisualIndexState] = React.useState(HOME_TAB_INDEX);
   const [sectionRootState, setSectionRootState] = React.useState<Record<NestedSection, boolean>>({
     Profilo: true,
     Donazioni: true,
@@ -215,7 +212,7 @@ export function MainTabs() {
   function isSectionAtRoot(tabName: MainTabName) {
     if (tabName === 'Profilo') return sectionRootState.Profilo;
     if (tabName === 'Donazioni') return sectionRootState.Donazioni;
-    return true; // Home ed Emergenza non hanno stack annidati.
+    return true; // Home non ha stack annidato.
   }
 
   function goToTab(index: number) {
@@ -235,12 +232,19 @@ export function MainTabs() {
     pagerRef.current?.setPage(index);
   }
 
+  function openDonationHistory() {
+    goToTab(DONATIONS_TAB_INDEX);
+    if (donationsNavigationRef.isReady()) {
+      donationsNavigationRef.navigate('StoricoDonazioni');
+    }
+  }
+
   return (
     <View style={styles.swipeShell}>
       <PagerView
         ref={pagerRef}
         style={styles.pager}
-        initialPage={0}
+        initialPage={HOME_TAB_INDEX}
         orientation="horizontal"
         scrollEnabled={canSwipeBetweenTabs}
         onPageScroll={(event) => {
@@ -249,17 +253,6 @@ export function MainTabs() {
         }}
         onPageSelected={(event) => setActiveIndex(event.nativeEvent.position)}
       >
-        <View key="home" style={styles.page}>
-          <DashboardScreen />
-        </View>
-        <View key="profile" style={styles.page}>
-          <IndependentNavigator
-            navigationRef={profileNavigationRef}
-            onRootStateChange={(isRoot) => updateSectionRootState('Profilo', isRoot)}
-          >
-            <ProfileStackNavigator />
-          </IndependentNavigator>
-        </View>
         <View key="donations" style={styles.page}>
           <IndependentNavigator
             navigationRef={donationsNavigationRef}
@@ -268,8 +261,16 @@ export function MainTabs() {
             <DonationsStackNavigator />
           </IndependentNavigator>
         </View>
-        <View key="emergency" style={styles.page}>
-          <EmergencyQrScreen />
+        <View key="home" style={styles.page}>
+          <DashboardScreen onOpenDonationHistory={openDonationHistory} />
+        </View>
+        <View key="profile" style={styles.page}>
+          <IndependentNavigator
+            navigationRef={profileNavigationRef}
+            onRootStateChange={(isRoot) => updateSectionRootState('Profilo', isRoot)}
+          >
+            <ProfileStackNavigator />
+          </IndependentNavigator>
         </View>
       </PagerView>
 

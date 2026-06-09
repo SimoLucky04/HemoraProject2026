@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppButton } from '../components/AppButton';
@@ -50,7 +51,19 @@ export function ProfileScreen() {
 
   return (
     <Screen>
-      <Title>Profilo sanitario</Title>
+      <View style={styles.headerRow}>
+        <Title>Profilo sanitario</Title>
+        <Pressable
+          onPress={() => navigation.navigate('ImpostazioniProfilo')}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Impostazioni"
+          accessibilityHint="Apri le impostazioni del profilo"
+          style={({ pressed }) => [styles.settingsButton, pressed && styles.settingsPressed]}
+        >
+          <Ionicons name="settings-outline" size={24} color={colors.primaryDark} />
+        </Pressable>
+      </View>
       <Subtitle>Inserisci i tuoi dati sanitari e nel caso anche informazioni salvavita.</Subtitle>
 
       <Card>
@@ -146,18 +159,26 @@ export function ProfileScreen() {
           description="Codice fiscale, peso e altezza."
           onPress={() => navigation.navigate('DatiOpzionali')}
         />
-        <SectionLink
-          icon="settings-outline"
-          title="Impostazioni"
-          description="Gestione locale dei dati salvati sul dispositivo."
-          onPress={() => navigation.navigate('ImpostazioniProfilo')}
-        />
       </Card>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  settingsButton: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsPressed: {
+    opacity: 0.6,
+  },
   label: {
     color: colors.text,
     fontWeight: '800',
