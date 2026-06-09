@@ -2,7 +2,8 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { Donation } from '../types';
 import { addDays } from './date';
-import { ELIGIBILITY_REMINDER_DAYS } from './notifications';
+import { getEligibilityDateForType } from './donationRules';
+import { ELIGIBILITY_REMINDER_DAYS, LONG_CYCLE_TYPES, REMINDER_TYPES } from './notifications';
 
 // Orario in cui far scattare i promemoria locali (notifiche push del telefono).
 const REMINDER_HOUR = 9;
@@ -61,9 +62,10 @@ async function scheduleAt(date: Date, title: string, body: string) {
   });
 }
 
-// Riallinea le notifiche locali alla donazione piu recente: programma il
-// promemoria "una settimana prima" e quello "ora puoi donare". Se le date sono
-// gia passate, non programma nulla.
+// Riallinea le notifiche locali allo storico, per ogni tipo di donazione:
+// - "ora puoi donare" il giorno di idoneita (tutti i tipi);
+// - "una settimana prima" solo per i tipi a ciclo lungo (sangue intero).
+// Se le date sono gia passate, non programma nulla.
 export async function syncDonationReminders(donations: Donation[]) {
   const granted = await ensureNotificationPermissions();
   if (!granted) return;
@@ -71,29 +73,33 @@ export async function syncDonationReminders(donations: Donation[]) {
   // Riparte da zero per evitare promemoria duplicati o obsoleti.
   await Notifications.cancelAllScheduledNotificationsAsync();
 
-  const latest = [...donations].sort((a, b) => b.date.localeCompare(a.date))[0];
-  if (!latest) return;
-
   const now = new Date();
-  const eligibleDate = buildTriggerDate(latest.nextEligibilityDate, REMINDER_HOUR);
-  const reminderDate = buildTriggerDate(
-    addDays(latest.nextEligibilityDate, -ELIGIBILITY_REMINDER_DAYS),
-    REMINDER_HOUR
-  );
 
-  if (reminderDate > now) {
-    await scheduleAt(
-      reminderDate,
-      'Manca una settimana',
-      'Tra una settimana potrai donare di nuovo. Inizia a organizzarti!'
-    );
-  }
+  for (const type of REMINDER_TYPES) {
+    const eligibleISO = getEligibilityDateForType(donations, type);
+    if (!eligibleISO) continue;
 
-  if (eligibleDate > now) {
-    await scheduleAt(
-      eligibleDate,
-      'Ora puoi donare',
-      'Sei di nuovo idoneo a donare il sangue. Prenota una donazione!'
-    );
+    const eligibleDate = buildTriggerDate(eligibleISO, REMINDER_HOUR);
+    if (eligibleDate > now) {
+      await scheduleAt(
+        eligibleDate,
+        'Ora puoi donare',
+        `Sei di nuovo idoneo a donare ${type.toLowerCase()}. Prenota una donazione!`
+      );
+    }
+
+    if (LONG_CYCLE_TYPES.includes(type)) {
+      const reminderDate = buildTriggerDate(
+        addDays(eligibleISO, -ELIGIBILITY_REMINDER_DAYS),
+        REMINDER_HOUR
+      );
+      if (reminderDate > now) {
+        await scheduleAt(
+          reminderDate,
+          'Manca una settimana',
+          `Tra una settimana potrai donare ${type.toLowerCase()} di nuovo. Inizia a organizzarti!`
+        );
+      }
+    }
   }
 }

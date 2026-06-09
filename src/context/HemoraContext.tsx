@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
+import { AppState } from 'react-native';
+import React, { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   Booking,
   CollectionCenter,
@@ -56,13 +57,9 @@ type HemoraContextValue = {
   removeMedication: (id: string) => void;
   addEmergencyContact: (contact: Omit<EmergencyContact, 'id'>) => void;
   removeEmergencyContact: (id: string) => void;
-  addDonation: (payload: {
-    date: string;
-    centerName: string;
-    type: DonationType;
-    volumeMl?: string;
-  }) => Donation;
   bookDonation: (payload: { centerId: string; type: DonationType; dateTime: string }) => Booking;
+  removeBooking: (id: string) => void;
+  reconcileDueBookings: () => void;
   markNotificationsRead: () => void;
   markDonationReminderRead: (id: string) => void;
   saveDraft: (screenName: string, data: Record<string, any>) => Promise<void>;
@@ -150,6 +147,47 @@ export function HemoraProvider({ children }: PropsWithChildren) {
       cancelled = true;
     };
   }, [isReady]);
+
+  // Una prenotazione il cui slot e passato diventa automaticamente una donazione
+  // nello storico (e da quel momento guida l'idoneita futura).
+  const reconcileDueBookings = useCallback(() => {
+    setState((current) => {
+      const now = Date.now();
+      const due = current.bookings.filter(
+        (booking) => booking.status === 'Confermata' && new Date(booking.dateTime).getTime() <= now
+      );
+      if (due.length === 0) return current;
+
+      const completed: Donation[] = due.map((booking) => {
+        const date = booking.dateTime.slice(0, 10);
+        return {
+          id: `donation-${booking.id}`,
+          date,
+          centerId: booking.centerId,
+          centerName: booking.centerName,
+          type: booking.type,
+          nextEligibilityDate: calculateNextEligibilityDate(date, booking.type),
+        };
+      });
+      const dueIds = new Set(due.map((booking) => booking.id));
+
+      return {
+        ...current,
+        donations: [...completed, ...current.donations],
+        bookings: current.bookings.filter((booking) => !dueIds.has(booking.id)),
+      };
+    });
+  }, []);
+
+  // Riconcilia all'avvio e ogni volta che l'app torna in primo piano.
+  useEffect(() => {
+    if (!isReady) return;
+    reconcileDueBookings();
+    const subscription = AppState.addEventListener('change', (status) => {
+      if (status === 'active') reconcileDueBookings();
+    });
+    return () => subscription.remove();
+  }, [isReady, reconcileDueBookings]);
 
   const value = useMemo<HemoraContextValue>(() => {
     return {
@@ -247,18 +285,6 @@ export function HemoraProvider({ children }: PropsWithChildren) {
           },
         }));
       },
-      addDonation({ date, centerName, type, volumeMl }) {
-        const donation: Donation = {
-          id: uid('donation'),
-          date,
-          centerName,
-          type,
-          volumeMl,
-          nextEligibilityDate: calculateNextEligibilityDate(date, type, state.profile.sex),
-        };
-        setState((current) => ({ ...current, donations: [donation, ...current.donations] }));
-        return donation;
-      },
       bookDonation({ centerId, type, dateTime }) {
         const center = state.centers.find((item) => item.id === centerId);
         const booking: Booking = {
@@ -272,6 +298,13 @@ export function HemoraProvider({ children }: PropsWithChildren) {
         setState((current) => ({ ...current, bookings: [booking, ...current.bookings] }));
         return booking;
       },
+      removeBooking(id) {
+        setState((current) => ({
+          ...current,
+          bookings: current.bookings.filter((item) => item.id !== id),
+        }));
+      },
+      reconcileDueBookings,
       markNotificationsRead() {
         setState((current) => {
           const newReminderIds = getDonationReminders(current)

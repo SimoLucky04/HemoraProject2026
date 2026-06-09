@@ -5,6 +5,7 @@ import QRCode from 'react-native-qrcode-svg';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppButton } from '../components/AppButton';
 import { Card } from '../components/Card';
+import { EligibilityStatus } from '../components/EligibilityStatus';
 import { Screen } from '../components/Screen';
 import { SectionLink } from '../components/SectionLink';
 import { Badge, Muted, Row, SectionTitle, Subtitle, Title } from '../components/TextBlocks';
@@ -17,9 +18,10 @@ import { NotificationsScreen } from './NotificationsScreen';
 
 type DashboardScreenProps = {
   onOpenDonationHistory: () => void;
+  onOpenBookings: () => void;
 };
 
-export function DashboardScreen({ onOpenDonationHistory }: DashboardScreenProps) {
+export function DashboardScreen({ onOpenDonationHistory, onOpenBookings }: DashboardScreenProps) {
   const { state, markDonationReminderRead } = useHemora();
   const { profile, donations, bookings } = state;
   const fullName = getFullName(profile) || 'Utente Hemora';
@@ -104,7 +106,8 @@ export function DashboardScreen({ onOpenDonationHistory }: DashboardScreenProps)
         {lastDonation ? (
           <>
             <Text style={styles.notes}>Ultima: {formatItalianDate(lastDonation.date)} - {lastDonation.type}</Text>
-            <Text style={styles.notes}>Prossima idoneita: {formatItalianDate(lastDonation.nextEligibilityDate)}</Text>
+            <Text style={styles.eligibilityHeading}>Idoneità per tipo</Text>
+            <EligibilityStatus donations={donations} />
           </>
         ) : (
           <Muted>Nessuna donazione registrata. Aggiungi la prima dalla sezione Donazioni.</Muted>
@@ -197,10 +200,10 @@ export function DashboardScreen({ onOpenDonationHistory }: DashboardScreenProps)
             </Text>
             <View style={styles.popupActions}>
               <AppButton
-                title="Vai alle donazioni"
+                title="Prenota una donazione"
                 onPress={() => {
                   dismissEligibilityPopup();
-                  onOpenDonationHistory();
+                  onOpenBookings();
                 }}
               />
               <AppButton title="Chiudi" variant="ghost" onPress={dismissEligibilityPopup} />
@@ -218,6 +221,11 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
     lineHeight: 22,
     fontSize: 15,
+  },
+  eligibilityHeading: {
+    color: colors.muted,
+    fontWeight: '800',
+    marginTop: spacing.sm,
   },
   metricsGrid: {
     flexDirection: 'row',

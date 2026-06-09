@@ -11,10 +11,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import PagerView from 'react-native-pager-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DashboardScreen } from '../screens/DashboardScreen';
-import { DonationBookingsScreen } from '../screens/DonationBookingsScreen';
-import { DonationCentersScreen } from '../screens/DonationCentersScreen';
+import { BookingsScreen } from '../screens/BookingsScreen';
+import { BookingCreateScreen } from '../screens/BookingCreateScreen';
 import { DonationHistoryScreen } from '../screens/DonationHistoryScreen';
-import { DonationRegisterScreen } from '../screens/DonationRegisterScreen';
 import { DonationsHubScreen } from '../screens/DonationsHubScreen';
 import { EmergencyContactsScreen } from '../screens/EmergencyContactsScreen';
 import { ConditionsScreen } from '../screens/ConditionsScreen';
@@ -41,10 +40,9 @@ export type ProfileStackParamList = {
 
 export type DonationsStackParamList = {
   DonazioniMain: undefined;
-  RegistraDonazione: undefined;
   StoricoDonazioni: undefined;
-  CentriRaccolta: undefined;
   Prenotazioni: undefined;
+  NuovaPrenotazione: { centerId?: string } | undefined;
 };
 
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();
@@ -135,10 +133,9 @@ function DonationsStackNavigator() {
   return (
     <DonationsStack.Navigator screenOptions={stackScreenOptions}>
       <DonationsStack.Screen name="DonazioniMain" component={DonationsHubScreen} options={{ headerShown: false }} />
-      <DonationsStack.Screen name="RegistraDonazione" component={DonationRegisterScreen} options={{ title: 'Registra donazione' }} />
       <DonationsStack.Screen name="StoricoDonazioni" component={DonationHistoryScreen} options={{ title: 'Storico donazioni' }} />
-      <DonationsStack.Screen name="CentriRaccolta" component={DonationCentersScreen} options={{ title: 'Centri e prenotazione' }} />
-      <DonationsStack.Screen name="Prenotazioni" component={DonationBookingsScreen} options={{ title: 'Prenotazioni' }} />
+      <DonationsStack.Screen name="Prenotazioni" component={BookingsScreen} options={{ title: 'Prenotazioni' }} />
+      <DonationsStack.Screen name="NuovaPrenotazione" component={BookingCreateScreen} options={{ title: 'Nuova prenotazione' }} />
     </DonationsStack.Navigator>
   );
 }
@@ -239,6 +236,13 @@ export function MainTabs() {
     }
   }
 
+  function openBookings() {
+    goToTab(DONATIONS_TAB_INDEX);
+    if (donationsNavigationRef.isReady()) {
+      donationsNavigationRef.navigate('Prenotazioni');
+    }
+  }
+
   return (
     <View style={styles.swipeShell}>
       <PagerView
@@ -262,7 +266,7 @@ export function MainTabs() {
           </IndependentNavigator>
         </View>
         <View key="home" style={styles.page}>
-          <DashboardScreen onOpenDonationHistory={openDonationHistory} />
+          <DashboardScreen onOpenDonationHistory={openDonationHistory} onOpenBookings={openBookings} />
         </View>
         <View key="profile" style={styles.page}>
           <IndependentNavigator
