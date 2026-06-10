@@ -3,12 +3,13 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '../components/AppButton';
 import { Card } from '../components/Card';
+import { EntryCard } from '../components/EntryCard';
 import { Field } from '../components/Field';
 import { SelectField } from '../components/SelectField';
 import { nestedScreenEdges, Screen } from '../components/Screen';
-import { Badge, Muted, Row, SectionTitle, Subtitle, Title } from '../components/TextBlocks';
+import { Badge, Muted, SectionTitle, Subtitle, Title } from '../components/TextBlocks';
 import { useHemora } from '../context/HemoraContext';
-import { ConditionSeverity } from '../types';
+import { Condition, ConditionSeverity } from '../types';
 import { colors, spacing } from '../theme';
 
 const SEVERITIES: ConditionSeverity[] = ['Bassa', 'Media', 'Alta'];
@@ -84,6 +85,13 @@ export function ConditionsScreen() {
     setConditionNotes('');
   }
 
+  function confirmDelete(item: Condition) {
+    Alert.alert('Eliminare la voce?', item.name, [
+      { text: 'Annulla', style: 'cancel' },
+      { text: 'Elimina', style: 'destructive', onPress: () => removeCondition(item.id) },
+    ]);
+  }
+
   return (
     <Screen safeAreaEdges={nestedScreenEdges}>
       <Title>Patologie e allergie</Title>
@@ -117,27 +125,36 @@ export function ConditionsScreen() {
         <AppButton title="Aggiungi patologia/allergia" onPress={submitCondition} />
       </Card>
 
-      <Card>
-        <Row>
-          <SectionTitle>Elenco salvato</SectionTitle>
-          <Badge>{state.profile.conditions.length}</Badge>
-        </Row>
-        {state.profile.conditions.length === 0 ? (
+      <View style={styles.listHeader}>
+        <SectionTitle>Elenco salvato</SectionTitle>
+        <Badge>{state.profile.conditions.length}</Badge>
+      </View>
+
+      {state.profile.conditions.length === 0 ? (
+        <Card tone="subtle">
           <Muted>Nessuna patologia inserita.</Muted>
-        ) : (
-          state.profile.conditions.map((item) => (
-            <View key={item.id} style={styles.listItem}>
-              <Row>
-                <Text style={styles.itemTitle}>{item.name}</Text>
-                {item.isAllergy && <Badge>Allergia</Badge>}
-              </Row>
-              <Muted>{item.category} · Gravità {item.severity}</Muted>
-              {!!item.notes && <Text style={styles.itemText}>{item.notes}</Text>}
-              <AppButton title="Elimina" onPress={() => removeCondition(item.id)} variant="ghost" />
-            </View>
-          ))
-        )}
-      </Card>
+        </Card>
+      ) : (
+        state.profile.conditions.map((item) => (
+          <EntryCard
+            key={item.id}
+            icon={item.isAllergy ? 'alert-circle' : 'medical'}
+            tint={colors.primary}
+            tintBg={colors.primarySoft}
+            title={item.name}
+            onDelete={() => confirmDelete(item)}
+            deleteLabel={`Elimina ${item.name}`}
+          >
+            {item.isAllergy && (
+              <View style={styles.badgeWrap}>
+                <Badge tone="danger">Allergia</Badge>
+              </View>
+            )}
+            <Muted>{item.category} · Gravità {item.severity}</Muted>
+            {!!item.notes && <Text style={styles.notes}>{item.notes}</Text>}
+          </EntryCard>
+        ))
+      )}
     </Screen>
   );
 }
@@ -154,21 +171,20 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.md,
   },
-  listItem: {
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
-    marginTop: spacing.md,
+  listHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs + 2,
   },
-  itemTitle: {
-    fontSize: 16,
-    color: colors.text,
-    fontWeight: '900',
-    marginBottom: spacing.xs,
+  badgeWrap: {
+    marginBottom: 4,
   },
-  itemText: {
+  notes: {
     color: colors.text,
-    marginTop: spacing.sm,
+    fontSize: 14,
     lineHeight: 20,
+    marginTop: spacing.xs,
   },
 });

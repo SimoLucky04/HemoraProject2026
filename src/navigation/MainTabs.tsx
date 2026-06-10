@@ -22,7 +22,7 @@ import { OptionalDataScreen } from '../screens/OptionalDataScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { AdminToolsScreen } from '../screens/AdminToolsScreen';
-import { colors, spacing } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 export type MainTabsParamList = {
   Donazioni: undefined;
@@ -58,10 +58,12 @@ type TabIconName = React.ComponentProps<typeof Ionicons>['name'];
 type MainTabName = (typeof MAIN_TAB_ORDER)[number];
 type NestedSection = Extract<MainTabName, 'Profilo' | 'Donazioni'>;
 
-const tabIcons: Record<MainTabName, { active: TabIconName; inactive: TabIconName; label: string }> = {
-  Donazioni: { active: 'water', inactive: 'water-outline', label: 'Donazioni' },
-  Home: { active: 'home', inactive: 'home-outline', label: 'Home' },
-  Profilo: { active: 'person', inactive: 'person-outline', label: 'Profilo' },
+// Una sola glyph stabile per tab: cambia solo colore/sfondo in base al focus,
+// così le icone non "saltano" tra versione piena e outline durante le transizioni.
+const tabIcons: Record<MainTabName, { icon: TabIconName; label: string }> = {
+  Donazioni: { icon: 'water', label: 'Donazioni' },
+  Home: { icon: 'home', label: 'Home' },
+  Profilo: { icon: 'person', label: 'Profilo' },
 };
 
 const tabAccessibilityLabels: Record<MainTabName, string> = {
@@ -69,10 +71,6 @@ const tabAccessibilityLabels: Record<MainTabName, string> = {
   Home: 'Home Hemora, riepilogo carta salvavita',
   Profilo: 'Profilo, modifica dati salvavita',
 };
-
-function clampTabIndex(index: number) {
-  return Math.min(Math.max(index, 0), MAIN_TAB_ORDER.length - 1);
-}
 
 const nestedNavigationTheme = {
   ...DefaultTheme,
@@ -174,8 +172,11 @@ export function MainTabs() {
   const activeIndexRef = React.useRef(HOME_TAB_INDEX);
   const profileNavigationRef = React.useRef(createNavigationContainerRef<ProfileStackParamList>()).current;
   const donationsNavigationRef = React.useRef(createNavigationContainerRef<DonationsStackParamList>()).current;
+  // activeIndex = pagina confermata (governa swipe abilitato e reset stack).
+  // highlightIndex = tab evidenziata, aggiornata in tempo reale durante lo swipe.
   const [activeIndex, setActiveIndexState] = React.useState(HOME_TAB_INDEX);
-  const [visualIndex, setVisualIndexState] = React.useState(HOME_TAB_INDEX);
+  const [highlightIndex, setHighlightIndexState] = React.useState(HOME_TAB_INDEX);
+  const programmaticJumpRef = React.useRef(false);
   const [sectionRootState, setSectionRootState] = React.useState<Record<NestedSection, boolean>>({
     Profilo: true,
     Donazioni: true,
@@ -187,12 +188,12 @@ export function MainTabs() {
 
   function setActiveIndex(index: number) {
     activeIndexRef.current = index;
-    setActiveIndexState(index);
-    setVisualIndex(index);
+    setActiveIndexState((current) => (current === index ? current : index));
+    setHighlightIndex(index);
   }
 
-  function setVisualIndex(index: number) {
-    setVisualIndexState((current) => (current === index ? current : index));
+  function setHighlightIndex(index: number) {
+    setHighlightIndexState((current) => (current === index ? current : index));
   }
 
   function updateSectionRootState(section: NestedSection, isRoot: boolean) {
@@ -228,6 +229,9 @@ export function MainTabs() {
       return;
     }
 
+    // Salto da tap: marchiamo il jump cosi onPageScroll non accende le tab
+    // intermedie durante l'animazione; l'indicatore va dritto alla destinazione.
+    programmaticJumpRef.current = true;
     setActiveIndex(index);
     pagerRef.current?.setPage(index);
   }
@@ -255,10 +259,17 @@ export function MainTabs() {
         orientation="horizontal"
         scrollEnabled={canSwipeBetweenTabs}
         onPageScroll={(event) => {
+          // Durante uno swipe col dito aggiorniamo subito l'indicatore (a meta
+          // transizione). Durante un salto da tap restiamo fermi sulla destinazione.
+          if (programmaticJumpRef.current) return;
           const { offset, position } = event.nativeEvent;
-          setVisualIndex(clampTabIndex(Math.round(position + offset)));
+          const next = Math.round(position + offset);
+          setHighlightIndex(Math.min(Math.max(next, 0), MAIN_TAB_ORDER.length - 1));
         }}
-        onPageSelected={(event) => setActiveIndex(event.nativeEvent.position)}
+        onPageSelected={(event) => {
+          programmaticJumpRef.current = false;
+          setActiveIndex(event.nativeEvent.position);
+        }}
       >
         <View key="donations" style={styles.page}>
           <IndependentNavigator
@@ -283,7 +294,7 @@ export function MainTabs() {
 
       <View style={styles.tabBar} accessibilityRole="tablist">
         {MAIN_TAB_ORDER.map((tabName, index) => {
-          const focused = visualIndex === index;
+          const focused = highlightIndex === index;
           const icon = tabIcons[tabName];
 
           return (
@@ -296,13 +307,15 @@ export function MainTabs() {
               accessibilityState={{ selected: focused }}
               style={({ pressed }) => [styles.tabItem, pressed && styles.tabPressed]}
             >
-              <Ionicons
-                name={focused ? icon.active : icon.inactive}
-                size={24}
-                color={focused ? colors.primary : colors.muted}
-                accessibilityElementsHidden
-                importantForAccessibility="no-hide-descendants"
-              />
+              <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+                <Ionicons
+                  name={icon.icon}
+                  size={22}
+                  color={focused ? colors.primary : colors.muted}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                />
+              </View>
               <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>{icon.label}</Text>
             </Pressable>
           );
@@ -357,6 +370,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     justifyContent: 'center',
+  },
+  iconWrap: {
+    paddingHorizontal: 18,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+  },
+  iconWrapActive: {
+    backgroundColor: colors.primarySoft,
   },
   tabPressed: {
     opacity: 0.72,

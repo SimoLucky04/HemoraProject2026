@@ -1,32 +1,37 @@
 # Hemora Backend
 
-Backend demo **local-first** per Hemora. Si occupa **solo** del dominio della
-donazione del sangue e dei dati condivisi/simulati utili a testare l'app.
+Backend demo **local-first** per Hemora. Espone **solo** i dati condivisi e
+simulati che l'app consuma davvero, con le **stesse regole di dominio** del
+client: niente endpoint che l'app non usa.
 
 ## Cosa gestisce il backend
 
-- centri di raccolta (elenco e dettaglio);
-- slot di donazione simulati per ogni centro;
-- prenotazioni di donazione (creazione, elenco, annullamento);
-- emergenze sangue, con filtro per compatibilità di gruppo/Rh e città;
-- calcolo dell'idoneità alla prossima donazione.
+- centri di raccolta (elenco con filtro per posizione e dettaglio);
+- emergenze sangue, con filtro opzionale per compatibilità di gruppo/Rh e città;
+- regole e calcolo dell'idoneità alla prossima donazione, identici all'app.
 
 ## Cosa NON gestisce il backend (resta locale nell'app)
 
 Profilo sanitario, patologie, allergie, farmaci salvavita, note salvavita,
-contatti di emergenza e generazione/contenuto del QR di emergenza **non**
-passano dal backend: sono dati salvavita conservati localmente nell'app
-(AsyncStorage). Il backend non è un archivio centrale del profilo sanitario.
+contatti di emergenza, QR di emergenza **e prenotazioni/storico donazioni** non
+passano dal backend: sono dati che l'app conserva localmente sul dispositivo
+(AsyncStorage). Il backend non è un archivio centrale del profilo né del flusso
+di prenotazione: l'app è **local-first**.
 
-## Dati reali e simulati
+## Coerenza con l'app
 
-Non usa database: i dati sono in memoria, così il progetto resta leggero e
-facile da avviare.
+- L'idoneità usa la stessa matrice di attesa *ultima → prossima donazione*
+  (`WAIT_DAYS`) di `src/utils/donationEligibility.ts`: un'unica fonte di verità.
+  L'endpoint `/api/donation-rules` la espone esplicitamente.
+- I tipi di dominio (gruppo sanguigno, Rh, tipo donazione, centro, emergenza)
+  rispecchiano quelli dell'app.
+
+## Dati simulati
+
+Nessun database: i dati sono in memoria, così il progetto resta leggero.
 
 - centri di raccolta: dataset curato di strutture reali della Campania in
   `src/data/collectionCenters.ts`;
-- slot di donazione: generati al volo per i prossimi giorni feriali;
-- prenotazioni: salvate in memoria (si azzerano al riavvio del backend);
 - emergenze sangue: elenco demo in memoria;
 - logica di idoneità: `src/logic/eligibility.ts`;
 - logica di compatibilità sangue: `src/logic/bloodCompatibility.ts`.
@@ -51,35 +56,26 @@ CORS_ORIGIN="*"
 ## API disponibili
 
 ```text
-GET    /health
-GET    /api/centers
-GET    /api/centers?lat=40.6824&lon=14.7681&radiusKm=30
-GET    /api/centers/:id
-GET    /api/centers/:id/slots
-POST   /api/bookings
-GET    /api/bookings
-DELETE /api/bookings/:id
-GET    /api/emergency-alerts
-GET    /api/emergencies?bloodType=A&rh=positive&city=Salerno
-GET    /api/donation-eligibility?type=Plasma&sex=M&lastDonationDate=2026-05-01
+GET  /health
+GET  /api/centers
+GET  /api/centers?lat=40.6824&lon=14.7681&radiusKm=30
+GET  /api/centers/:id
+GET  /api/emergency-alerts
+GET  /api/emergencies?bloodType=A&rh=positive&city=Salerno
+GET  /api/donation-rules
+GET  /api/donation-eligibility?type=Plasma&lastType=Sangue%20intero&lastDonationDate=2026-05-01
 ```
 
 Note:
 
-- `/api/centers` accetta `lat`, `lon` e `radiusKm` per restituire i centri
-  reali più vicini alla posizione dell'utente. Senza coordinate restituisce il
-  dataset completo.
-- `/api/bookings` usa un `userId` opzionale (nel body in POST, in query in
-  GET/DELETE) solo per associare la prenotazione: **non** salva il profilo
-  sanitario dell'utente. È una gestione minimale pensata per il testing.
+- `/api/centers` accetta `lat`, `lon` e `radiusKm` per restituire i centri reali
+  più vicini alla posizione dell'utente. Senza coordinate restituisce il dataset
+  completo. È l'endpoint usato dall'app per la mappa.
+- `/api/emergency-alerts` restituisce le emergenze attive senza filtri ed è
+  l'endpoint usato dall'app per le notifiche.
 - `/api/emergencies` accetta il fattore Rh sia come simbolo (`+`/`-`) sia come
-  parola (`positive`/`negative`). Restituisce le emergenze per cui l'utente
-  (donatore) è compatibile con il gruppo richiesto.
-- `/api/emergency-alerts` è mantenuto per compatibilità con il front-end
-  esistente e restituisce le emergenze attive senza filtri di compatibilità.
-
-## Test
-
-```bash
-npm test
-```
+  parola (`positive`/`negative`) e restituisce solo le emergenze per cui
+  l'utente-donatore è compatibile con il gruppo richiesto.
+- `/api/donation-eligibility` calcola l'idoneità dato il tipo della prossima
+  donazione e, opzionalmente, tipo e data dell'ultima (`lastType`,
+  `lastDonationDate`). Senza ultima donazione l'utente è idoneo.

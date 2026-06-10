@@ -1,9 +1,10 @@
+// Modello di dominio del backend, allineato a quello dell'app (src/types.ts).
+// Il backend serve solo i dati condivisi/simulati che l'app consuma davvero:
+// centri di raccolta, emergenze sangue e le regole di idoneita alla donazione.
 export type BloodGroup = '0' | 'A' | 'B' | 'AB';
 export type RhFactor = '+' | '-';
 export type Urgency = 'Bassa' | 'Media' | 'Alta';
 export type DonationType = 'Sangue intero' | 'Plasma' | 'Piastrine';
-export type Sex = 'M' | 'F' | 'Altro';
-export type BookingStatus = 'Confermata' | 'Annullata';
 
 export type CollectionCenterDto = {
   id: string;
@@ -28,25 +29,6 @@ export type ListCentersOptions = {
   latitude?: number;
   longitude?: number;
   radiusKm?: number;
-};
-
-export type DonationSlotDto = {
-  id: string;
-  centerId: string;
-  dateTime: string; // ISO string
-  available: boolean;
-};
-
-export type BookingDto = {
-  id: string;
-  userId: string;
-  centerId: string;
-  centerName: string;
-  slotId: string | null;
-  dateTime: string; // ISO string
-  type: DonationType;
-  status: BookingStatus;
-  createdAt: string;
 };
 
 export type EmergencyBloodAlertDto = {
@@ -74,23 +56,11 @@ export type ListEmergenciesFilter = {
   city?: string;
 };
 
-export type CreateBookingInput = {
-  userId?: string;
-  centerId: string;
-  slotId?: string;
-  dateTime?: string;
-  type: DonationType;
-};
-
-export type CancelBookingResult = 'cancelled' | 'not-found';
-
+// Il backend e di sola lettura sui dati condivisi: niente prenotazioni o profilo
+// lato server (l'app e local-first e li tiene sul dispositivo).
 export interface HemoraDataStore {
   listCenters(options?: ListCentersOptions): Promise<CollectionCenterDto[]>;
   getCenter(id: string): Promise<CollectionCenterDto | null>;
-  listSlots(centerId: string): Promise<DonationSlotDto[]>;
   listEmergencyAlerts(options?: ListEmergencyAlertsOptions): Promise<EmergencyBloodAlertDto[]>;
   listEmergencies(filter?: ListEmergenciesFilter): Promise<EmergencyBloodAlertDto[]>;
-  createBooking(input: CreateBookingInput): Promise<BookingDto>;
-  listBookings(userId?: string): Promise<BookingDto[]>;
-  cancelBooking(id: string, userId?: string): Promise<CancelBookingResult>;
 }

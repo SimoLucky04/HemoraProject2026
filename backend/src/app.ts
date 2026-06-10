@@ -1,18 +1,9 @@
 import cors from 'cors';
 import express, { ErrorRequestHandler } from 'express';
 import helmet from 'helmet';
-import {
-  BloodGroup,
-  DonationType,
-  HemoraDataStore,
-  RhFactor,
-  Sex,
-} from './types';
-import { calculateEligibility } from './logic/eligibility';
+import { BloodGroup, DonationType, HemoraDataStore, RhFactor } from './types';
+import { calculateEligibility, DONATION_TYPES, WAIT_DAYS } from './logic/eligibility';
 import { normalizeBloodGroup, normalizeRh } from './logic/bloodCompatibility';
-
-const DONATION_TYPES: DonationType[] = ['Sangue intero', 'Plasma', 'Piastrine'];
-const SEXES: Sex[] = ['M', 'F', 'Altro'];
 
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
@@ -23,6 +14,11 @@ function asNumber(value: unknown): number | undefined {
   if (!text) return undefined;
   const number = Number(text);
   return Number.isFinite(number) ? number : undefined;
+}
+
+function asDonationType(value: unknown): DonationType | undefined {
+  const text = asString(value);
+  return text && DONATION_TYPES.includes(text as DonationType) ? (text as DonationType) : undefined;
 }
 
 export function createApp(store: HemoraDataStore) {
@@ -88,67 +84,8 @@ export function createApp(store: HemoraDataStore) {
     }
   });
 
-  app.get('/api/centers/:id/slots', async (req, res, next) => {
-    try {
-      const center = await store.getCenter(req.params.id);
-      if (!center) {
-        res.status(404).json({ error: 'Center not found' });
-        return;
-      }
-      const slots = await store.listSlots(req.params.id);
-      res.json({ data: slots });
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  // --- Prenotazioni donazione --------------------------------------------
-  app.post('/api/bookings', async (req, res, next) => {
-    try {
-      const { userId, centerId, slotId, dateTime, type } = req.body ?? {};
-
-      if (!centerId || !type || !DONATION_TYPES.includes(type)) {
-        res.status(400).json({ error: 'centerId e type (tipo donazione valido) sono obbligatori' });
-        return;
-      }
-
-      const booking = await store.createBooking({ userId, centerId, slotId, dateTime, type });
-      res.status(201).json({ data: booking });
-    } catch (error) {
-      if (error instanceof Error && error.message === 'CENTER_NOT_FOUND') {
-        res.status(404).json({ error: 'Center not found' });
-        return;
-      }
-      next(error);
-    }
-  });
-
-  app.get('/api/bookings', async (req, res, next) => {
-    try {
-      const userId = asString(req.query.userId);
-      const bookings = await store.listBookings(userId);
-      res.json({ data: bookings });
-    } catch (error) {
-      next(error);
-    }
-  });
-
-  app.delete('/api/bookings/:id', async (req, res, next) => {
-    try {
-      const userId = asString(req.query.userId);
-      const result = await store.cancelBooking(req.params.id, userId);
-      if (result === 'not-found') {
-        res.status(404).json({ error: 'Booking not found' });
-        return;
-      }
-      res.json({ data: { id: req.params.id, status: 'Annullata' } });
-    } catch (error) {
-      next(error);
-    }
-  });
-
   // --- Emergenze sangue ---------------------------------------------------
-  // Endpoint storico mantenuto per compatibilità con il front-end esistente.
+  // Endpoint usato dall'app: emergenze attive senza filtri di compatibilita.
   app.get('/api/emergency-alerts', async (req, res, next) => {
     try {
       const activeOnly = req.query.active !== 'false';
@@ -159,7 +96,7 @@ export function createApp(store: HemoraDataStore) {
     }
   });
 
-  // Emergenze filtrabili per gruppo/Rh dell'utente e città.
+  // Emergenze filtrabili per gruppo/Rh del donatore e citta.
   // Esempio: GET /api/emergencies?bloodType=A&rh=positive&city=Salerno
   app.get('/api/emergencies', async (req, res, next) => {
     try {
@@ -180,27 +117,28 @@ export function createApp(store: HemoraDataStore) {
     }
   });
 
-  // --- Idoneità alla donazione -------------------------------------------
-  // Esempio: GET /api/donation-eligibility?type=Plasma&sex=M&lastDonationDate=2026-05-01
+  // --- Idoneita alla donazione -------------------------------------------
+  // Regole condivise con l'app (matrice WAIT_DAYS, ultima->prossima donazione).
+  app.get('/api/donation-rules', (_req, res) => {
+    res.json({ data: { types: DONATION_TYPES, waitDays: WAIT_DAYS } });
+  });
+
+  // Esempio: GET /api/donation-eligibility?type=Plasma&lastType=Sangue intero&lastDonationDate=2026-05-01
   app.get('/api/donation-eligibility', (req, res) => {
-    const type = asString(req.query.type);
-    const sex = asString(req.query.sex);
+    const type = asDonationType(req.query.type);
+    const lastType = asDonationType(req.query.lastType);
     const lastDonationDate = asString(req.query.lastDonationDate);
 
-    if (!type || !DONATION_TYPES.includes(type as DonationType)) {
+    if (!type) {
       res.status(400).json({ error: 'Parametro type non valido' });
       return;
     }
-    if (!sex || !SEXES.includes(sex as Sex)) {
-      res.status(400).json({ error: 'Parametro sex non valido' });
+    if (req.query.lastType !== undefined && !lastType) {
+      res.status(400).json({ error: 'Parametro lastType non valido' });
       return;
     }
 
-    const result = calculateEligibility({
-      type: type as DonationType,
-      sex: sex as Sex,
-      lastDonationDate,
-    });
+    const result = calculateEligibility({ type, lastType, lastDonationDate });
     res.json({ data: result });
   });
 

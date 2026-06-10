@@ -18,6 +18,7 @@ export type Medication = {
   id: string;
   commercialName: string;
   activeIngredient: string;
+  form?: string; // forma farmaceutica: compressa, sciroppo, inalatore...
   dosage: string;
   emergencyNotes: string;
   relevantInEmergency: boolean;

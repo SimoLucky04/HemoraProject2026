@@ -1,18 +1,21 @@
-import { DonationType, Sex } from '../types';
+import { DonationType } from '../types';
 
-// Intervalli minimi (in giorni) tra una donazione e la successiva.
-// Regole dimostrative per il progetto universitario: in produzione vanno
-// validate con le linee guida ufficiali sulla donazione del sangue.
-// Sono volutamente semplici e centralizzate qui per essere facili da modificare.
-const ELIGIBILITY_DAYS: Record<DonationType, Record<Sex, number>> = {
-  'Sangue intero': { M: 90, F: 180, Altro: 120 },
-  Plasma: { M: 14, F: 14, Altro: 14 },
-  Piastrine: { M: 14, F: 14, Altro: 14 },
+// Giorni minimi di attesa in base all'ULTIMA donazione (riga) e alla PROSSIMA
+// (colonna). Stessa matrice usata dall'app (src/utils/donationEligibility.ts):
+// un'unica fonte di verita, cosi backend e client calcolano l'idoneita allo
+// stesso modo. I tre tipi sono indipendenti, ognuno con la sua attesa.
+export const WAIT_DAYS: Record<DonationType, Record<DonationType, number>> = {
+  'Sangue intero': { 'Sangue intero': 90, Plasma: 30, Piastrine: 30 },
+  Plasma: { 'Sangue intero': 14, Plasma: 14, Piastrine: 14 },
+  Piastrine: { 'Sangue intero': 14, Plasma: 14, Piastrine: 14 },
 };
+
+export const DONATION_TYPES: DonationType[] = ['Sangue intero', 'Plasma', 'Piastrine'];
 
 export type EligibilityResult = {
   eligible: boolean;
   nextEligibleDate: string | null; // YYYY-MM-DD
+  waitDays: number;
   message: string;
 };
 
@@ -23,37 +26,37 @@ function addDays(dateString: string, days: number): string {
 }
 
 /**
- * Calcola se l'utente è idoneo a una nuova donazione e, in caso negativo,
- * la prossima data utile in base al tipo di donazione, al sesso e alla data
- * dell'ultima donazione.
+ * Calcola se l'utente e idoneo alla prossima donazione di tipo `type` dato il
+ * tipo e la data dell'ultima donazione. Senza un'ultima donazione e idoneo.
  *
- * Se `lastDonationDate` non è fornita si assume che l'utente non abbia
- * donazioni recenti e sia quindi idoneo.
+ * Regole dimostrative per il progetto universitario: vanno validate con le
+ * linee guida ufficiali sulla donazione del sangue prima di un uso reale.
  */
 export function calculateEligibility(params: {
   type: DonationType;
-  sex: Sex;
+  lastType?: DonationType;
   lastDonationDate?: string; // YYYY-MM-DD
 }): EligibilityResult {
-  const { type, sex, lastDonationDate } = params;
+  const { type, lastType, lastDonationDate } = params;
 
-  if (!lastDonationDate) {
+  if (!lastDonationDate || !lastType) {
     return {
       eligible: true,
       nextEligibleDate: null,
+      waitDays: 0,
       message: 'Nessuna donazione recente registrata: idoneo a donare.',
     };
   }
 
-  const intervalDays = ELIGIBILITY_DAYS[type][sex];
-  const nextEligibleDate = addDays(lastDonationDate, intervalDays);
-
+  const waitDays = WAIT_DAYS[lastType][type];
+  const nextEligibleDate = addDays(lastDonationDate, waitDays);
   const today = new Date().toISOString().slice(0, 10);
   const eligible = today >= nextEligibleDate;
 
   return {
     eligible,
     nextEligibleDate,
+    waitDays,
     message: eligible
       ? 'Idoneo a una nuova donazione.'
       : `Prossima donazione possibile dal ${nextEligibleDate}.`,

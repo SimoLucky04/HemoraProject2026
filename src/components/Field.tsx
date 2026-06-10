@@ -13,9 +13,12 @@ type Props = {
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   accessibilityLabel?: string;
   accessibilityHint?: string;
+  maxLength?: number;
+  // Messaggio di errore: evidenzia il campo in rosso e lo mostra sotto.
+  error?: string;
 };
 
-export const Field = React.memo(function Field({ label, multiline, accessibilityLabel, accessibilityHint, ...props }: Props) {
+export const Field = React.memo(function Field({ label, multiline, accessibilityLabel, accessibilityHint, error, ...props }: Props) {
   return (
     <View style={styles.wrapper}>
       <Text style={styles.label}>{label}</Text>
@@ -24,10 +27,11 @@ export const Field = React.memo(function Field({ label, multiline, accessibility
         accessible
         accessibilityLabel={accessibilityLabel ?? label}
         accessibilityHint={accessibilityHint}
-        style={[styles.input, multiline && styles.multiline]}
+        style={[styles.input, multiline && styles.multiline, !!error && styles.inputError]}
         placeholderTextColor={colors.muted}
         multiline={multiline}
       />
+      {!!error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 });
@@ -55,5 +59,14 @@ const styles = StyleSheet.create({
   multiline: {
     minHeight: 96,
     textAlignVertical: 'top',
+  },
+  inputError: {
+    borderColor: colors.danger,
+  },
+  errorText: {
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: spacing.xs / 2,
   },
 });

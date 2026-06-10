@@ -21,6 +21,7 @@ export type EmergencyPayload = {
   medications: Array<{
     name: string;
     activeIngredient: string;
+    form: string;
     dosage: string;
     notes: string;
   }>;
@@ -76,6 +77,7 @@ export function buildEmergencyPayload(profile: HealthProfile): EmergencyPayload 
       .map((item) => ({
         name: item.commercialName,
         activeIngredient: item.activeIngredient,
+        form: item.form ?? '',
         dosage: item.dosage,
         notes: item.emergencyNotes,
       })),
@@ -104,10 +106,11 @@ export function buildEmergencyTextPayload(profile: HealthProfile) {
     return `- ${allergy}${item.name} (${item.category}, gravita ${item.severity})${notes}`;
   });
   const medications = payload.medications.map((item) => {
+    const form = item.form ? ` (${item.form})` : '';
     const activeIngredient = item.activeIngredient ? ` | Principio attivo: ${item.activeIngredient}` : '';
     const dosage = item.dosage ? ` | Dosaggio: ${item.dosage}` : '';
     const notes = item.notes ? ` | Note: ${item.notes}` : '';
-    return `- ${item.name}${activeIngredient}${dosage}${notes}`;
+    return `- ${item.name}${form}${activeIngredient}${dosage}${notes}`;
   });
   const contacts = payload.emergencyContacts.map((item) => {
     const relation = item.relation ? ` (${item.relation})` : '';
