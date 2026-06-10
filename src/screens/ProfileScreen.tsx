@@ -7,8 +7,9 @@ import { AppButton } from '../components/AppButton';
 import { Card } from '../components/Card';
 import { DatePickerField } from '../components/DatePickerField';
 import { Field } from '../components/Field';
+import { FeatureCard } from '../components/FeatureCard';
+import { PillSelector } from '../components/PillSelector';
 import { Screen } from '../components/Screen';
-import { SectionLink } from '../components/SectionLink';
 import { Muted, SectionTitle, Subtitle, Title } from '../components/TextBlocks';
 import { useHemora } from '../context/HemoraContext';
 import { BloodGroup, HealthProfile, RhFactor, Sex } from '../types';
@@ -16,8 +17,8 @@ import type { ProfileStackParamList } from '../navigation/MainTabs';
 import { colors, spacing } from '../theme';
 
 const SEX_OPTIONS: Sex[] = ['M', 'F', 'Altro'];
-const BLOOD_OPTIONS: BloodGroup[] = ['0', 'A', 'B', 'AB'];
-const RH_OPTIONS: RhFactor[] = ['+', '-'];
+const BLOOD_OPTIONS: Exclude<BloodGroup, ''>[] = ['0', 'A', 'B', 'AB'];
+const RH_OPTIONS: Exclude<RhFactor, ''>[] = ['+', '-'];
 
 type Navigation = NativeStackNavigationProp<ProfileStackParamList>;
 
@@ -50,7 +51,7 @@ export function ProfileScreen() {
   }
 
   return (
-    <Screen>
+    <Screen footer={<AppButton title="Salva dati essenziali" onPress={submit} />}>
       <View style={styles.headerRow}>
         <Title>Profilo sanitario</Title>
         <Pressable
@@ -78,41 +79,26 @@ export function ProfileScreen() {
           minimumDate={new Date('1900-01-01T12:00:00')}
         />
 
-        <Text style={styles.label}>Sesso</Text>
-        <View style={styles.optionRow}>
-          {SEX_OPTIONS.map((option) => (
-            <AppButton
-              key={option}
-              title={option}
-              onPress={() => update('sex', option)}
-              variant={profile.sex === option ? 'primary' : 'ghost'}
-            />
-          ))}
-        </View>
+        <PillSelector
+          label="Sesso"
+          options={SEX_OPTIONS}
+          value={profile.sex}
+          onChange={(value) => update('sex', value)}
+        />
 
-        <Text style={styles.label}>Gruppo sanguigno</Text>
-        <View style={styles.optionRow}>
-          {BLOOD_OPTIONS.map((option) => (
-            <AppButton
-              key={option}
-              title={option}
-              onPress={() => update('bloodGroup', option)}
-              variant={profile.bloodGroup === option ? 'primary' : 'ghost'}
-            />
-          ))}
-        </View>
+        <PillSelector
+          label="Gruppo sanguigno"
+          options={BLOOD_OPTIONS}
+          value={profile.bloodGroup}
+          onChange={(value) => update('bloodGroup', value)}
+        />
 
-        <Text style={styles.label}>Fattore Rh</Text>
-        <View style={styles.optionRow}>
-          {RH_OPTIONS.map((option) => (
-            <AppButton
-              key={option}
-              title={option}
-              onPress={() => update('rh', option)}
-              variant={profile.rh === option ? 'primary' : 'ghost'}
-            />
-          ))}
-        </View>
+        <PillSelector
+          label="Fattore Rh"
+          options={RH_OPTIONS}
+          value={profile.rh}
+          onChange={(value) => update('rh', value)}
+        />
       </Card>
 
       <Card>
@@ -127,39 +113,46 @@ export function ProfileScreen() {
         <Muted>Queste note saranno incluse nel QR di emergenza.</Muted>
       </Card>
 
-      <AppButton title="Salva dati essenziali" onPress={submit} />
-
-      <Card>
+      <View style={styles.menuHeader}>
         <SectionTitle>Sottosezioni profilo</SectionTitle>
         <Muted>Apri la parte da modificare senza affollare la barra inferiore.</Muted>
-        <SectionLink
-          icon="medical-outline"
-          title="Patologie e allergie"
-          description="Categoria, gravità, allergie e note utili al soccorritore."
-          badge={state.profile.conditions.length}
-          onPress={() => navigation.navigate('Patologie')}
-        />
-        <SectionLink
-          icon="medkit-outline"
-          title="Farmaci salvavita"
-          description="Nome, principio attivo, dosaggio e indicazioni di emergenza."
-          badge={state.profile.medications.length}
-          onPress={() => navigation.navigate('Farmaci')}
-        />
-        <SectionLink
-          icon="call-outline"
-          title="Contatti emergenza"
-          description="Persone da contattare in caso di necessità."
-          badge={state.profile.emergencyContacts.length}
-          onPress={() => navigation.navigate('ContattiEmergenza')}
-        />
-        <SectionLink
-          icon="document-text-outline"
-          title="Dati opzionali"
-          description="Codice fiscale, peso e altezza."
-          onPress={() => navigation.navigate('DatiOpzionali')}
-        />
-      </Card>
+      </View>
+
+      <FeatureCard
+        icon="medical-outline"
+        title="Patologie e allergie"
+        description="Categoria, gravità, allergie e note utili al soccorritore."
+        badge={state.profile.conditions.length}
+        tint={colors.primary}
+        tintBg={colors.primarySoft}
+        onPress={() => navigation.navigate('Patologie')}
+      />
+      <FeatureCard
+        icon="medkit-outline"
+        title="Farmaci salvavita"
+        description="Nome, principio attivo, dosaggio e indicazioni di emergenza."
+        badge={state.profile.medications.length}
+        tint={colors.plasma}
+        tintBg={colors.plasmaBg}
+        onPress={() => navigation.navigate('Farmaci')}
+      />
+      <FeatureCard
+        icon="call-outline"
+        title="Contatti emergenza"
+        description="Persone da contattare in caso di necessità."
+        badge={state.profile.emergencyContacts.length}
+        tint={colors.platelet}
+        tintBg={colors.plateletBg}
+        onPress={() => navigation.navigate('ContattiEmergenza')}
+      />
+      <FeatureCard
+        icon="document-text-outline"
+        title="Dati opzionali"
+        description="Codice fiscale, peso e altezza."
+        tint={colors.info}
+        tintBg={colors.infoBg}
+        onPress={() => navigation.navigate('DatiOpzionali')}
+      />
     </Screen>
   );
 }
@@ -179,15 +172,8 @@ const styles = StyleSheet.create({
   settingsPressed: {
     opacity: 0.6,
   },
-  label: {
-    color: colors.text,
-    fontWeight: '800',
-    marginBottom: spacing.sm,
-  },
-  optionRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    flexWrap: 'wrap',
-    marginBottom: spacing.md,
+  menuHeader: {
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs + 2,
   },
 });

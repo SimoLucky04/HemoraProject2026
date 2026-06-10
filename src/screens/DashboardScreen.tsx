@@ -1,16 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import QRCode from 'react-native-qrcode-svg';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppButton } from '../components/AppButton';
 import { Card } from '../components/Card';
 import { EligibilityStatus } from '../components/EligibilityStatus';
 import { Screen } from '../components/Screen';
-import { SectionLink } from '../components/SectionLink';
 import { Badge, Muted, Row, SectionTitle, Subtitle, Title } from '../components/TextBlocks';
 import { useHemora } from '../context/HemoraContext';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, shadows, spacing } from '../theme';
 import { formatItalianDate } from '../utils/date';
 import { buildEmergencyTextPayload, getBloodType, getFullName, getMissingEmergencyFields } from '../utils/emergencyProfile';
 import { buildNotifications, countUnread, getDonationEligibilityReminder } from '../utils/notifications';
@@ -87,32 +87,59 @@ export function DashboardScreen({ onOpenDonationHistory, onOpenBookings }: Dashb
         </Pressable>
       </View>
 
-      <Card tone={hasEmergencyData ? 'default' : 'critical'}>
-        <SectionTitle>Emergenza</SectionTitle>
-        <SectionLink
-          icon="qr-code"
-          title="QR di emergenza"
-          description={
-            hasEmergencyData
-              ? 'Mostra il QR con i dati salvavita, disponibile anche offline.'
-              : 'Completa i dati salvavita per generare il QR.'
-          }
-          onPress={() => setEmergencyVisible(true)}
-        />
-      </Card>
+      <Pressable
+        onPress={() => setEmergencyVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel="QR di emergenza"
+        accessibilityHint={hasEmergencyData ? 'Mostra il QR salvavita' : 'Completa i dati salvavita'}
+        style={({ pressed }) => pressed && styles.emergencyPressed}
+      >
+        <LinearGradient
+          colors={[colors.gradientStart, colors.gradientEnd]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.emergencyCard}
+        >
+          <View style={styles.emergencyTop}>
+            <View style={styles.emergencyTextBlock}>
+              <View style={styles.emergencyTag}>
+                <Ionicons name="medkit" size={13} color={colors.surface} />
+                <Text style={styles.emergencyTagText}>EMERGENZA</Text>
+              </View>
+              <Text style={styles.emergencyTitle}>QR salvavita</Text>
+              <Text style={styles.emergencySubtitle}>
+                {hasEmergencyData
+                  ? 'Dati salvavita pronti, leggibili anche offline.'
+                  : 'Completa i dati salvavita per generare il QR.'}
+              </Text>
+            </View>
+            <View style={styles.qrBadge}>
+              <Ionicons name="qr-code" size={46} color={colors.primaryDark} />
+            </View>
+          </View>
+          <View style={styles.emergencyCta}>
+            <Text style={styles.emergencyCtaText}>{hasEmergencyData ? 'Mostra QR' : 'Completa ora'}</Text>
+            <Ionicons name="arrow-forward" size={18} color={colors.primaryDark} />
+          </View>
+        </LinearGradient>
+      </Pressable>
 
-      <Card>
-        <SectionTitle>Donazioni</SectionTitle>
-        {lastDonation ? (
-          <>
-            <Text style={styles.notes}>Ultima: {formatItalianDate(lastDonation.date)} - {lastDonation.type}</Text>
-            <Text style={styles.eligibilityHeading}>Idoneità per tipo</Text>
-            <EligibilityStatus donations={donations} />
-          </>
-        ) : (
-          <Muted>Nessuna donazione registrata. Aggiungi la prima dalla sezione Donazioni.</Muted>
+      <View style={styles.sectionHeader}>
+        <SectionTitle>Idoneità a donare</SectionTitle>
+        {lastDonation && (
+          <Text style={styles.lastDonation}>
+            Ultima: {formatItalianDate(lastDonation.date)} · {lastDonation.type}
+          </Text>
         )}
-      </Card>
+      </View>
+      {lastDonation ? (
+        <EligibilityStatus donations={donations} />
+      ) : (
+        <Card tone="subtle">
+          <Muted>Nessuna donazione registrata. Aggiungi la prima dalla sezione Donazioni.</Muted>
+        </Card>
+      )}
+      <View style={styles.sectionSpacer} />
 
       <Card>
         <SectionTitle>Prenotazioni</SectionTitle>
@@ -216,16 +243,91 @@ export function DashboardScreen({ onOpenDonationHistory, onOpenBookings }: Dashb
 }
 
 const styles = StyleSheet.create({
-  notes: {
-    color: colors.text,
-    marginTop: spacing.xs,
-    lineHeight: 22,
-    fontSize: 15,
+  emergencyPressed: {
+    opacity: 0.92,
   },
-  eligibilityHeading: {
-    color: colors.muted,
-    fontWeight: '800',
+  emergencyCard: {
+    borderRadius: radius.xl,
+    padding: spacing.md - 4,
+    marginBottom: spacing.sm,
+    ...shadows.elevated,
+  },
+  emergencyTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  emergencyTextBlock: {
+    flex: 1,
+  },
+  emergencyTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    marginBottom: spacing.xs,
+  },
+  emergencyTagText: {
+    color: colors.surface,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  emergencyTitle: {
+    color: colors.surface,
+    fontSize: 24,
+    fontWeight: '900',
+    marginBottom: 4,
+  },
+  emergencySubtitle: {
+    color: 'rgba(255,255,255,0.92)',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  qrBadge: {
+    width: 78,
+    height: 78,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.soft,
+  },
+  emergencyCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     marginTop: spacing.sm,
+    backgroundColor: colors.surface,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.pill,
+  },
+  emergencyCtaText: {
+    color: colors.primaryDark,
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs + 2,
+    marginTop: spacing.xs,
+  },
+  lastDonation: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+  sectionSpacer: {
+    height: spacing.sm,
   },
   metricsGrid: {
     flexDirection: 'row',

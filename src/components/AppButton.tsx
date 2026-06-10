@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, shadows, spacing } from '../theme';
 
 type Props = {
   title: string;
@@ -50,8 +50,8 @@ export const AppButton = React.memo(function AppButton({
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 48,
-    borderRadius: radius.md,
+    minHeight: 52,
+    borderRadius: radius.lg,
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
     alignItems: 'center',
@@ -60,6 +60,7 @@ const styles = StyleSheet.create({
   },
   primary: {
     backgroundColor: colors.primary,
+    ...shadows.soft,
   },
   secondary: {
     backgroundColor: colors.primaryDark,

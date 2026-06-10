@@ -1,6 +1,6 @@
 import React, { PropsWithChildren } from 'react';
 import { StyleSheet, View, ViewProps } from 'react-native';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, shadows, spacing } from '../theme';
 
 type Props = PropsWithChildren<
   ViewProps & {
@@ -19,16 +19,12 @@ export const Card = React.memo(function Card({ children, style, tone = 'default'
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: spacing.sm,
+    borderRadius: radius.xl,
+    padding: spacing.sm + 2,
     marginBottom: spacing.sm,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
+    ...shadows.card,
   },
   default: {},
   critical: {
@@ -41,5 +37,7 @@ const styles = StyleSheet.create({
   },
   subtle: {
     backgroundColor: colors.surfaceMuted,
+    borderColor: colors.surfaceMuted,
+    ...shadows.soft,
   },
 });
