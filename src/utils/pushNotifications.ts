@@ -62,6 +62,31 @@ async function scheduleAt(date: Date, title: string, body: string) {
   });
 }
 
+// Notifica push di prova: chiede il permesso e programma una notifica locale del
+// sistema fra ~2 secondi. Utile per verificare sul dispositivo che le push
+// arrivino (puoi anche bloccare lo schermo per vederla nella tendina).
+// Ritorna false se il permesso e negato.
+export async function sendTestPushNotification(): Promise<boolean> {
+  const granted = await ensureNotificationPermissions();
+  if (!granted) return false;
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Hemora · Notifica di prova',
+      body: 'Se vedi questo messaggio, le notifiche push sul dispositivo funzionano.',
+      sound: true,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 2,
+      repeats: false,
+      channelId: ANDROID_CHANNEL_ID,
+    },
+  });
+
+  return true;
+}
+
 // Riallinea le notifiche locali allo storico, per ogni tipo di donazione:
 // - "ora puoi donare" il giorno di idoneita (tutti i tipi);
 // - "una settimana prima" solo per i tipi a ciclo lungo (sangue intero).

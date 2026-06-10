@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { Alert, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { AppButton } from '../components/AppButton';
 import { Card } from '../components/Card';
 import { Field } from '../components/Field';
+import { SelectField } from '../components/SelectField';
 import { nestedScreenEdges, Screen } from '../components/Screen';
 import { Badge, Muted, Row, SectionTitle, Subtitle, Title } from '../components/TextBlocks';
 import { useHemora } from '../context/HemoraContext';
@@ -12,12 +13,28 @@ import { colors, spacing } from '../theme';
 
 const SEVERITIES: ConditionSeverity[] = ['Bassa', 'Media', 'Alta'];
 
+// Macro-categorie selezionabili dal menu a tendina. "Allergia" marca la voce
+// come allergia (sostituisce il vecchio switch dedicato).
+const ALLERGY_CATEGORY = 'Allergia';
+const CONDITION_CATEGORIES = [
+  'Cardiovascolare',
+  'Respiratoria',
+  'Metabolica/Endocrina',
+  'Neurologica',
+  ALLERGY_CATEGORY,
+  'Autoimmune',
+  'Gastrointestinale',
+  'Renale',
+  'Oncologica',
+  'Dermatologica',
+  'Altro',
+] as const;
+
 export function ConditionsScreen() {
   const { state, addCondition, removeCondition, saveDraft, loadDraft, clearDraft } = useHemora();
   const [conditionName, setConditionName] = useState('');
   const [conditionCategory, setConditionCategory] = useState('Altro');
   const [conditionSeverity, setConditionSeverity] = useState<ConditionSeverity>('Media');
-  const [conditionIsAllergy, setConditionIsAllergy] = useState(false);
   const [conditionNotes, setConditionNotes] = useState('');
 
   useEffect(() => {
@@ -27,7 +44,6 @@ export function ConditionsScreen() {
         setConditionName(draft.conditionName || '');
         setConditionCategory(draft.conditionCategory || 'Altro');
         setConditionSeverity(draft.conditionSeverity || 'Media');
-        setConditionIsAllergy(draft.conditionIsAllergy || false);
         setConditionNotes(draft.conditionNotes || '');
       }
     }
@@ -41,11 +57,10 @@ export function ConditionsScreen() {
           conditionName,
           conditionCategory,
           conditionSeverity,
-          conditionIsAllergy,
           conditionNotes,
         });
       };
-    }, [conditionName, conditionCategory, conditionSeverity, conditionIsAllergy, conditionNotes, saveDraft]),
+    }, [conditionName, conditionCategory, conditionSeverity, conditionNotes, saveDraft]),
   );
 
   function submitCondition() {
@@ -55,9 +70,10 @@ export function ConditionsScreen() {
     }
     addCondition({
       name: conditionName.trim(),
-      category: conditionCategory.trim() || 'Altro',
+      category: conditionCategory || 'Altro',
       severity: conditionSeverity,
-      isAllergy: conditionIsAllergy,
+      // L'allergia non ha piu uno switch: deriva dalla categoria scelta nel menu.
+      isAllergy: conditionCategory === ALLERGY_CATEGORY,
       notes: conditionNotes.trim(),
       relevantInEmergency: true,
     });
@@ -65,7 +81,6 @@ export function ConditionsScreen() {
     setConditionName('');
     setConditionCategory('Altro');
     setConditionSeverity('Media');
-    setConditionIsAllergy(false);
     setConditionNotes('');
   }
 
@@ -77,7 +92,16 @@ export function ConditionsScreen() {
       <Card>
         <SectionTitle>Aggiungi voce</SectionTitle>
         <Field label="Nome" value={conditionName} onChangeText={setConditionName} placeholder="Esempio: Diabete, Penicillina..." />
-        <Field label="Categoria" value={conditionCategory} onChangeText={setConditionCategory} placeholder="Altro" />
+        <SelectField
+          label="Categoria"
+          value={conditionCategory}
+          options={CONDITION_CATEGORIES}
+          onChange={setConditionCategory}
+          placeholder="Scegli una categoria"
+        />
+        {conditionCategory === ALLERGY_CATEGORY && (
+          <Muted>Questa voce sarà contrassegnata come allergia nel QR di emergenza.</Muted>
+        )}
         <Text style={styles.label}>Gravità</Text>
         <View style={styles.optionRow}>
           {SEVERITIES.map((severity) => (
@@ -88,10 +112,6 @@ export function ConditionsScreen() {
               variant={conditionSeverity === severity ? 'primary' : 'ghost'}
             />
           ))}
-        </View>
-        <View style={styles.switchRow}>
-          <Text style={styles.switchText}>È un'allergia?</Text>
-          <Switch value={conditionIsAllergy} onValueChange={setConditionIsAllergy} />
         </View>
         <Field label="Note" value={conditionNotes} onChangeText={setConditionNotes} multiline />
         <AppButton title="Aggiungi patologia/allergia" onPress={submitCondition} />
@@ -133,16 +153,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.sm,
     marginBottom: spacing.md,
-  },
-  switchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.md,
-  },
-  switchText: {
-    color: colors.text,
-    fontWeight: '800',
   },
   listItem: {
     borderTopWidth: 1,

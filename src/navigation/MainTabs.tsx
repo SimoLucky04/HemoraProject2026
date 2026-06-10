@@ -21,6 +21,7 @@ import { MedicationsScreen } from '../screens/MedicationsScreen';
 import { OptionalDataScreen } from '../screens/OptionalDataScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { AdminToolsScreen } from '../screens/AdminToolsScreen';
 import { colors, spacing } from '../theme';
 
 export type MainTabsParamList = {
@@ -36,6 +37,7 @@ export type ProfileStackParamList = {
   ContattiEmergenza: undefined;
   DatiOpzionali: undefined;
   ImpostazioniProfilo: undefined;
+  StrumentiAdmin: undefined;
 };
 
 export type DonationsStackParamList = {
@@ -125,6 +127,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="ContattiEmergenza" component={EmergencyContactsScreen} options={{ title: 'Contatti emergenza' }} />
       <ProfileStack.Screen name="DatiOpzionali" component={OptionalDataScreen} options={{ title: 'Dati opzionali' }} />
       <ProfileStack.Screen name="ImpostazioniProfilo" component={SettingsScreen} options={{ title: 'Impostazioni' }} />
+      <ProfileStack.Screen name="StrumentiAdmin" component={AdminToolsScreen} options={{ title: 'Strumenti demo' }} />
     </ProfileStack.Navigator>
   );
 }

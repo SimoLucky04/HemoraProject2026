@@ -16,6 +16,62 @@ export const emptyProfile: HealthProfile = {
   emergencyContacts: [],
 };
 
+// Profilo demo completo per gli strumenti admin: riempie dati salvavita, QR,
+// patologie, farmaci e contatti in un colpo solo per testare l'app.
+export function buildDemoProfile(): HealthProfile {
+  return {
+    firstName: 'Maria',
+    lastName: 'Rossi',
+    fiscalCode: 'RSSMRA90A41H703X',
+    birthDate: '1990-01-01',
+    sex: 'F',
+    weightKg: '62',
+    heightCm: '168',
+    bloodGroup: '0',
+    rh: '+',
+    lifesavingNotes: 'Allergia alla penicillina (rischio shock anafilattico). Portatrice di lenti a contatto.',
+    conditions: [
+      {
+        id: 'demo-condition-1',
+        name: 'Asma',
+        category: 'Respiratoria',
+        severity: 'Media',
+        isAllergy: false,
+        notes: 'Usa broncodilatatore al bisogno.',
+        relevantInEmergency: true,
+      },
+      {
+        id: 'demo-condition-2',
+        name: 'Allergia alla penicillina',
+        category: 'Allergia',
+        severity: 'Alta',
+        isAllergy: true,
+        notes: 'Evitare antibiotici betalattamici.',
+        relevantInEmergency: true,
+      },
+    ],
+    medications: [
+      {
+        id: 'demo-med-1',
+        commercialName: 'Ventolin',
+        activeIngredient: 'Salbutamolo',
+        dosage: '100 mcg al bisogno',
+        emergencyNotes: 'In caso di crisi asmatica.',
+        relevantInEmergency: true,
+      },
+    ],
+    emergencyContacts: [
+      {
+        id: 'demo-contact-1',
+        name: 'Luca Rossi',
+        relation: 'Coniuge',
+        phone: '3331234567',
+        email: 'luca.rossi@example.com',
+      },
+    ],
+  };
+}
+
 export const mockCenters: CollectionCenter[] = [
   {
     id: 'center_1',

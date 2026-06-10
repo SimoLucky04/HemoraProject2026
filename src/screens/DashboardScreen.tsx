@@ -22,7 +22,7 @@ type DashboardScreenProps = {
 };
 
 export function DashboardScreen({ onOpenDonationHistory, onOpenBookings }: DashboardScreenProps) {
-  const { state, markDonationReminderRead } = useHemora();
+  const { state, markDonationReminderRead, eligibilityPopupPing } = useHemora();
   const { profile, donations, bookings } = state;
   const fullName = getFullName(profile) || 'Utente Hemora';
 
@@ -49,6 +49,13 @@ export function DashboardScreen({ onOpenDonationHistory, onOpenBookings }: Dashb
       setEligibilityVisible(true);
     }
   }, [eligibilityReminder?.id, eligibilityReminder?.read]);
+
+  // Riapertura forzata dagli strumenti demo: ogni incremento del ping mostra il popup.
+  useEffect(() => {
+    if (eligibilityPopupPing > 0) {
+      setEligibilityVisible(true);
+    }
+  }, [eligibilityPopupPing]);
 
   function dismissEligibilityPopup() {
     setEligibilityVisible(false);

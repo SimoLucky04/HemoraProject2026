@@ -1,13 +1,19 @@
 import React from 'react';
 import { Alert, StyleSheet, Text } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppButton } from '../components/AppButton';
 import { Card } from '../components/Card';
 import { nestedScreenEdges, Screen } from '../components/Screen';
 import { Muted, SectionTitle, Subtitle, Title } from '../components/TextBlocks';
 import { useHemora } from '../context/HemoraContext';
+import type { ProfileStackParamList } from '../navigation/MainTabs';
 import { colors, spacing } from '../theme';
 
+type Navigation = NativeStackNavigationProp<ProfileStackParamList>;
+
 export function SettingsScreen() {
+  const navigation = useNavigation<Navigation>();
   const { deleteAccount, markNotificationsRead } = useHemora();
 
   function confirmDelete() {
@@ -42,6 +48,16 @@ export function SettingsScreen() {
         <SectionTitle>Privacy</SectionTitle>
         <Muted>Nessun dato sanitario personale viene inviato al backend demo.</Muted>
         <AppButton title="Elimina dati locali" onPress={confirmDelete} variant="danger" />
+      </Card>
+
+      <Card tone="subtle">
+        <SectionTitle>Strumenti demo (admin)</SectionTitle>
+        <Muted>Popola e simula tutte le funzionalità dell'app per testarla o presentarla.</Muted>
+        <AppButton
+          title="Apri strumenti demo"
+          onPress={() => navigation.navigate('StrumentiAdmin')}
+          accessibilityHint="Apre il pannello admin per popolare dati di test"
+        />
       </Card>
     </Screen>
   );

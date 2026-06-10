@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
 import React, { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
+  BloodGroup,
   Booking,
   CollectionCenter,
   Condition,
@@ -12,12 +13,13 @@ import {
   HemoraState,
   HealthProfile,
   Medication,
+  RhFactor,
 } from '../types';
 import { fetchCollectionCenters, fetchEmergencyNotifications } from '../api/hemoraApi';
-import { emptyProfile, mockCenters, mockNotifications } from '../data/mockData';
+import { buildDemoProfile, emptyProfile, mockCenters, mockNotifications } from '../data/mockData';
 import { calculateNextEligibilityDate } from '../utils/donationEligibility';
 import { getDonationReminders } from '../utils/notifications';
-import { todayISO, uid } from '../utils/date';
+import { addDays, todayISO, uid } from '../utils/date';
 
 const STORAGE_KEY = '@hemora/state/v1';
 
@@ -65,6 +67,14 @@ type HemoraContextValue = {
   saveDraft: (screenName: string, data: Record<string, any>) => Promise<void>;
   loadDraft: (screenName: string) => Promise<Record<string, any> | null>;
   clearDraft: (screenName: string) => Promise<void>;
+  // --- Strumenti demo/admin (solo per test e presentazione) ---
+  seedDemoProfile: () => void;
+  addDemoDonation: (type: DonationType, daysAgo: number) => void;
+  pushDemoEmergency: () => void;
+  clearReadReminders: () => void;
+  // Contatore effimero: ogni incremento forza la Dashboard a mostrare il popup idoneità.
+  eligibilityPopupPing: number;
+  triggerEligibilityPopup: () => void;
 };
 
 const HemoraContext = createContext<HemoraContextValue | null>(null);
@@ -90,6 +100,8 @@ function preserveReadState(
 export function HemoraProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<HemoraState>(initialState);
   const [isReady, setReady] = useState(false);
+  // Non persistito: serve solo a riaprire il popup idoneità su richiesta (admin/demo).
+  const [eligibilityPopupPing, setEligibilityPopupPing] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -340,8 +352,59 @@ export function HemoraProvider({ children }: PropsWithChildren) {
         const draftKey = `@hemora/draft/${screenName}`;
         await AsyncStorage.removeItem(draftKey);
       },
+
+      // --- Strumenti demo/admin: pilotano le funzioni reali per testare l'app ---
+      seedDemoProfile() {
+        setState((current) => ({
+          ...current,
+          profile: { ...buildDemoProfile(), lastModifiedAt: new Date().toISOString() },
+        }));
+      },
+      addDemoDonation(type, daysAgo) {
+        const date = addDays(todayISO(), -Math.abs(daysAgo));
+        const center = mockCenters[0];
+        const donation: Donation = {
+          id: uid('donation'),
+          date,
+          centerId: center?.id,
+          centerName: center?.name ?? 'Centro demo',
+          type,
+          volumeMl: type === 'Sangue intero' ? '450' : type === 'Plasma' ? '600' : '200',
+          nextEligibilityDate: calculateNextEligibilityDate(date, type),
+        };
+        setState((current) => ({ ...current, donations: [donation, ...current.donations] }));
+      },
+      pushDemoEmergency() {
+        const groups: BloodGroup[] = ['0', 'A', 'B', 'AB'];
+        const rhs: RhFactor[] = ['+', '-'];
+        const group = groups[Math.floor(Math.random() * groups.length)];
+        const rh = rhs[Math.floor(Math.random() * rhs.length)];
+        const center = mockCenters[Math.floor(Math.random() * mockCenters.length)];
+        const notification: EmergencyNotification = {
+          id: uid('notification'),
+          centerName: center?.name ?? 'Centro trasfusionale',
+          requestedGroup: group,
+          rh,
+          urgency: 'Alta',
+          message: `Richiesta urgente di sangue ${group}${rh}. Prenota se sei idoneo.`,
+          sentAt: new Date().toISOString(),
+          read: false,
+        };
+        setState((current) => ({ ...current, notifications: [notification, ...current.notifications] }));
+      },
+      clearReadReminders() {
+        setState((current) =>
+          current.readDonationReminders.length === 0
+            ? current
+            : { ...current, readDonationReminders: [] }
+        );
+      },
+      eligibilityPopupPing,
+      triggerEligibilityPopup() {
+        setEligibilityPopupPing((value) => value + 1);
+      },
     };
-  }, [state, isReady]);
+  }, [state, isReady, eligibilityPopupPing]);
 
   return <HemoraContext.Provider value={value}>{children}</HemoraContext.Provider>;
 }
