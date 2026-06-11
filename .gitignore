@@ -1,14 +1,23 @@
+# === Dipendenze (a qualsiasi livello del monorepo) ===
 node_modules/
+
+# === Build & cache (a qualsiasi livello) ===
 dist/
+build/
 .expo/
+web-build/
+*.tsbuildinfo
+
+# === Variabili d'ambiente (i .env.example restano versionati) ===
 .env
+.env.local
+.env.*.local
 
-backend/node_modules/
-backend/dist/
-backend/.env
+# === Log ===
+*.log
+npm-debug.log*
+yarn-error.log*
 
-# macOS
+# === Sistema operativo / editor ===
 .DS_Store
-
-# Documentazione locale (non versionata)
-Hemora.pdf
+*.pem

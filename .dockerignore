@@ -1,0 +1,22 @@
+# Build context = root del repo (vedi docker-compose.yml). Qui escludiamo tutto
+# cio che NON serve a costruire l'immagine del backend, così il context inviato
+# al daemon resta leggero e i build veloci.
+
+# Dipendenze e build: ricostruiti dentro l'immagine
+**/node_modules
+**/dist
+**/.expo
+
+# App mobile e infrastruttura: non servono all'immagine backend
+apps/mobile
+infra
+docker-compose.yml
+
+# Git, ambiente, meta, documentazione
+.git
+.gitignore
+.dockerignore
+**/.env
+.DS_Store
+Hemora.pdf
+**/*.md

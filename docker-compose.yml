@@ -1,0 +1,70 @@
+# Orchestrazione Hemora: backend Node.js dietro un reverse proxy nginx,
+# entrambi su una rete Docker condivisa (hemora-net) raggiungibile dagli altri
+# container del PC.
+#
+#   docker compose up -d --build      avvia
+#   curl http://localhost:8080/health prova il forwarding (nginx -> backend)
+#   docker compose down               ferma
+name: hemora
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    image: hemora-backend:latest
+    container_name: hemora-backend
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+    # Esposto solo sulla rete interna: l'accesso dall'host passa da nginx.
+    expose:
+      - "4000"
+    networks:
+      - hemora-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: hemora-nginx
+    depends_on:
+      - backend
+    # Porta HTTP sull'host (override con HEMORA_HTTP_PORT). Inoltra al backend.
+    ports:
+      - "${HEMORA_HTTP_PORT:-8080}:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - hemora-net
+    restart: unless-stopped
+
+  # Tunnel pubblico DAVANTI a nginx: aggira reti con "client isolation"
+  # (es. WiFi universitaria) dove i dispositivi non si vedono tra loro sulla LAN.
+  # Opt-in: parte solo con il profilo "tunnel".
+  #   docker compose --profile tunnel up -d --build
+  #   docker compose logs tunnel   → mostra l'URL https://....trycloudflare.com
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: hemora-tunnel
+    profiles: ["tunnel"]
+    depends_on:
+      - nginx
+    command: tunnel --no-autoupdate --url http://nginx:80
+    networks:
+      - hemora-net
+    restart: unless-stopped
+
+# Rete Docker condivisa: altri container possono unirsi con
+#   docker network connect hemora-net <container>
+# oppure, in un altro compose, dichiarandola "external: true".
+networks:
+  hemora-net:
+    name: hemora-net
+    driver: bridge
