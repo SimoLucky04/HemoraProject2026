@@ -4,12 +4,14 @@
 import type {
   BloodGroup as BloodGroupBase,
   RhFactor as RhFactorBase,
+  Booking,
   CollectionCenter,
+  CreateBookingInput,
   DonationType,
   Urgency,
 } from '@hemora/shared-types';
 
-export type { CollectionCenter, DonationType, Urgency };
+export type { Booking, CollectionCenter, CreateBookingInput, DonationType, Urgency };
 
 export type Sex = 'M' | 'F' | 'Altro';
 
@@ -73,15 +75,6 @@ export type Donation = {
   type: DonationType;
   volumeMl?: string;
   nextEligibilityDate: string; // YYYY-MM-DD
-};
-
-export type Booking = {
-  id: string;
-  centerId: string;
-  centerName: string;
-  dateTime: string; // ISO string
-  type: DonationType;
-  status: 'Confermata' | 'Annullata';
 };
 
 export type EmergencyNotification = {

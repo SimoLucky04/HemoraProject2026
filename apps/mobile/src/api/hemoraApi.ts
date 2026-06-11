@@ -1,4 +1,4 @@
-import { CollectionCenter, EmergencyNotification } from '@app-types';
+import { Booking, CollectionCenter, CreateBookingInput, EmergencyNotification } from '@app-types';
 
 declare const process: {
   env?: {
@@ -77,4 +77,50 @@ export async function fetchEmergencies(filter?: {
   const query = params.toString() ? `?${params.toString()}` : '';
   const response = await getJson<ApiListResponse<ApiEmergencyAlert>>(`/api/emergencies${query}`);
   return response.data.map(mapAlert);
+}
+
+// --- Prenotazioni (gestite dal backend) ------------------------------------
+// L'utente e identificato dall'header X-User-Email (demo: niente auth vera).
+async function sendJson<T>(
+  path: string,
+  options: { method: string; userEmail: string; body?: unknown },
+): Promise<T> {
+  const response = await fetch(`${HEMORA_API_URL}${path}`, {
+    method: options.method,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-User-Email': options.userEmail,
+    },
+    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+  });
+  if (!response.ok) {
+    // Propaga il messaggio d'errore del backend (es. "Slot già occupato").
+    const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(payload?.error || `Hemora API error ${response.status}`);
+  }
+  return (await response.json().catch(() => ({}))) as T;
+}
+
+export async function fetchBookings(userEmail: string): Promise<Booking[]> {
+  const response = await sendJson<ApiListResponse<Booking>>('/api/bookings', {
+    method: 'GET',
+    userEmail,
+  });
+  return response.data;
+}
+
+export async function createBooking(userEmail: string, input: CreateBookingInput): Promise<Booking> {
+  const response = await sendJson<{ data: Booking }>('/api/bookings', {
+    method: 'POST',
+    userEmail,
+    body: input,
+  });
+  return response.data;
+}
+
+export async function cancelBooking(userEmail: string, bookingId: string): Promise<void> {
+  await sendJson(`/api/bookings/${encodeURIComponent(bookingId)}`, {
+    method: 'DELETE',
+    userEmail,
+  });
 }

@@ -67,7 +67,7 @@ export function BookingCreateScreen() {
   const existingTypeBooking = getActiveBookingForType(state.bookings, type);
   const canBook = eligibleForType && !existingTypeBooking;
 
-  function confirm() {
+  async function confirm() {
     if (!centerId) {
       Alert.alert('Centro mancante', 'Seleziona un centro di raccolta.');
       return;
@@ -106,12 +106,20 @@ export function BookingCreateScreen() {
       return;
     }
 
-    const booking = bookDonation({ centerId, type, dateTime });
-    Alert.alert(
-      'Prenotazione creata',
-      `${booking.centerName}\n${formatItalianDate(booking.dateTime)} alle ${slotLabel(hour)}`
-    );
-    navigation.goBack();
+    try {
+      const booking = await bookDonation({ centerId, type, dateTime });
+      Alert.alert(
+        'Prenotazione creata',
+        `${booking.centerName}\n${formatItalianDate(booking.dateTime)} alle ${slotLabel(hour)}`
+      );
+      navigation.goBack();
+    } catch (error) {
+      // Errori di validazione/rete dal backend (es. "Slot già occupato").
+      Alert.alert(
+        'Prenotazione non riuscita',
+        error instanceof Error ? error.message : 'Riprova più tardi.'
+      );
+    }
   }
 
   return (

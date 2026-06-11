@@ -1,8 +1,8 @@
 // Single source of truth dei tipi di dominio condivisi tra app (apps/mobile) e
-// backend (apps/backend). Qui vive solo il "contratto wire" davvero condiviso:
-// gruppi sanguigni, fattore Rh, tipi di donazione, centri di raccolta ed
-// emergenze sangue. I tipi puramente applicativi (profilo, prenotazioni, stato
-// UI) restano nell'app; quelli interni al server restano nel backend.
+// backend (apps/backend). Qui vive il "contratto wire" condiviso: gruppi
+// sanguigni, fattore Rh, tipi di donazione, centri di raccolta, emergenze sangue
+// e prenotazioni (gestite dal backend). I tipi puramente applicativi (profilo,
+// stato UI) restano nell'app; quelli interni al server restano nel backend.
 
 export type BloodGroup = '0' | 'A' | 'B' | 'AB';
 export type RhFactor = '+' | '-';
@@ -40,4 +40,24 @@ export interface EmergencyBloodAlertDto {
   areaRadiusKm: number | null;
   sentAt: string;
   activeUntil: string | null;
+}
+
+// --- Prenotazioni (gestite dal backend) ------------------------------------
+export type BookingStatus = 'Confermata' | 'Annullata';
+
+export interface Booking {
+  id: string;
+  centerId: string;
+  centerName: string;
+  dateTime: string; // ISO string
+  type: DonationType;
+  status: BookingStatus;
+}
+
+// Payload inviato dall'app per creare una prenotazione (l'utente arriva
+// dall'header X-User-Email; centerName e status li imposta il backend).
+export interface CreateBookingInput {
+  centerId: string;
+  type: DonationType;
+  dateTime: string; // ISO string
 }

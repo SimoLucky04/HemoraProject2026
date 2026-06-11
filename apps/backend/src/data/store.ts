@@ -1,5 +1,6 @@
 import type {
   BloodGroup,
+  Booking,
   CollectionCenter,
   EmergencyBloodAlertDto,
   RhFactor,
@@ -25,11 +26,22 @@ export type ListEmergenciesFilter = {
   city?: string;
 };
 
-// Il backend e di sola lettura sui dati condivisi: niente prenotazioni o profilo
-// lato server (l'app e local-first e li tiene sul dispositivo).
+// Dati condivisi di sola lettura (centri ed emergenze): l'app e local-first per
+// profilo, donazioni e QR, che restano sul dispositivo.
 export interface HemoraDataStore {
   listCenters(options?: ListCentersOptions): Promise<CollectionCenter[]>;
   getCenter(id: string): Promise<CollectionCenter | null>;
   listEmergencyAlerts(options?: ListEmergencyAlertsOptions): Promise<EmergencyBloodAlertDto[]>;
   listEmergencies(filter?: ListEmergenciesFilter): Promise<EmergencyBloodAlertDto[]>;
 }
+
+// Le prenotazioni sono l'unica parte scrivibile e per-utente del backend:
+// simulate in memoria, identificate dall'email dell'utente (header X-User-Email).
+export interface BookingStore {
+  listBookings(userId: string): Promise<Booking[]>;
+  createBooking(userId: string, booking: Booking): Promise<Booking>;
+  cancelBooking(userId: string, bookingId: string): Promise<boolean>;
+}
+
+// Store completo iniettato nell'app: dati condivisi (lettura) + prenotazioni.
+export type AppStore = HemoraDataStore & BookingStore;

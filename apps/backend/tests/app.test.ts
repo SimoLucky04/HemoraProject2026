@@ -121,3 +121,135 @@ describe('Hemora backend API', () => {
     expect(response.body.error).toBe('Not found');
   });
 });
+
+// Slot futuro in un giorno feriale (alle `hour`), in orario valido (8–12).
+function futureWeekdaySlot(hour = 9): string {
+  const date = new Date();
+  date.setDate(date.getDate() + 3);
+  while (date.getDay() === 0 || date.getDay() === 6) {
+    date.setDate(date.getDate() + 1);
+  }
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}T${String(hour).padStart(2, '0')}:00:00`;
+}
+
+// Primo sabato futuro (slot non valido).
+function futureWeekendSlot(): string {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  while (date.getDay() !== 6) {
+    date.setDate(date.getDate() + 1);
+  }
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}T09:00:00`;
+}
+
+const USER = { 'X-User-Email': 'mario@hemora.test' };
+
+describe('Hemora bookings API', () => {
+  it('rejects bookings without the user header', async () => {
+    await request(app).get('/api/bookings').expect(400);
+    await request(app)
+      .post('/api/bookings')
+      .send({ centerId: 'center_1', type: 'Plasma', dateTime: futureWeekdaySlot() })
+      .expect(400);
+  });
+
+  it('creates a booking and lists it for that user', async () => {
+    const created = await request(app)
+      .post('/api/bookings')
+      .set(USER)
+      .send({ centerId: 'center_1', type: 'Plasma', dateTime: futureWeekdaySlot() })
+      .expect(201);
+
+    expect(created.body.data).toMatchObject({
+      centerId: 'center_1',
+      centerName: 'Centro Medicina Trasfusionale AOU Ruggi',
+      type: 'Plasma',
+      status: 'Confermata',
+    });
+    expect(created.body.data.id).toBeTruthy();
+
+    const list = await request(app).get('/api/bookings').set(USER).expect(200);
+    expect(list.body.data).toHaveLength(1);
+    expect(list.body.data[0].id).toBe(created.body.data.id);
+  });
+
+  it('isolates bookings per user (chiave = email)', async () => {
+    await request(app)
+      .post('/api/bookings')
+      .set(USER)
+      .send({ centerId: 'center_1', type: 'Plasma', dateTime: futureWeekdaySlot() })
+      .expect(201);
+
+    const other = await request(app)
+      .get('/api/bookings')
+      .set({ 'X-User-Email': 'altro@hemora.test' })
+      .expect(200);
+    expect(other.body.data).toHaveLength(0);
+  });
+
+  it('rejects an unknown center', async () => {
+    await request(app)
+      .post('/api/bookings')
+      .set(USER)
+      .send({ centerId: 'center_999', type: 'Plasma', dateTime: futureWeekdaySlot() })
+      .expect(400);
+  });
+
+  it('rejects weekend slots', async () => {
+    await request(app)
+      .post('/api/bookings')
+      .set(USER)
+      .send({ centerId: 'center_1', type: 'Plasma', dateTime: futureWeekendSlot() })
+      .expect(400);
+  });
+
+  it('rejects a second active booking for the same type', async () => {
+    await request(app)
+      .post('/api/bookings')
+      .set(USER)
+      .send({ centerId: 'center_1', type: 'Plasma', dateTime: futureWeekdaySlot(9) })
+      .expect(201);
+
+    await request(app)
+      .post('/api/bookings')
+      .set(USER)
+      .send({ centerId: 'center_1', type: 'Plasma', dateTime: futureWeekdaySlot(10) })
+      .expect(409);
+  });
+
+  it('rejects a slot conflict on the same day and hour', async () => {
+    const slot = futureWeekdaySlot(9);
+    await request(app)
+      .post('/api/bookings')
+      .set(USER)
+      .send({ centerId: 'center_1', type: 'Plasma', dateTime: slot })
+      .expect(201);
+
+    // Stesso slot, tipo diverso -> conflitto di slot.
+    await request(app)
+      .post('/api/bookings')
+      .set(USER)
+      .send({ centerId: 'center_1', type: 'Sangue intero', dateTime: slot })
+      .expect(409);
+  });
+
+  it('cancels a booking and is idempotent on a second delete', async () => {
+    const created = await request(app)
+      .post('/api/bookings')
+      .set(USER)
+      .send({ centerId: 'center_1', type: 'Plasma', dateTime: futureWeekdaySlot() })
+      .expect(201);
+
+    await request(app).delete(`/api/bookings/${created.body.data.id}`).set(USER).expect(200);
+    await request(app).delete(`/api/bookings/${created.body.data.id}`).set(USER).expect(404);
+
+    const list = await request(app).get('/api/bookings').set(USER).expect(200);
+    expect(list.body.data).toHaveLength(0);
+  });
+});

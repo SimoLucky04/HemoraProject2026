@@ -20,7 +20,6 @@ type Navigation = NativeStackNavigationProp<DonationsStackParamList>;
 type MapPoint = { latitude: number; longitude: number };
 type CenterWithDistance = CollectionCenter & { distanceKm: number };
 
-const SEARCH_RADIUS_KM = 30;
 const FALLBACK_LOCATION: MapPoint = { latitude: 40.6824, longitude: 14.7681 };
 
 function toRadians(value: number) {
@@ -88,34 +87,30 @@ export function BookingsScreen() {
   useEffect(() => {
     let cancelled = false;
 
-    async function refreshNearbyCenters(location: MapPoint) {
-      await refreshCenters({
-        latitude: location.latitude,
-        longitude: location.longitude,
-        radiusKm: SEARCH_RADIUS_KM,
-      });
-    }
+    // Carica SEMPRE tutti i centri (nessun filtro per raggio): cosi l'insieme di
+    // pin sulla mappa resta stabile tra un'apertura e l'altra. La posizione GPS
+    // serve solo a calcolare le distanze per le etichette/ordinamento, mai a
+    // nascondere dei centri.
+    refreshCenters().catch(() => {
+      // Local-first: se il backend e offline teniamo i centri gia in memoria.
+    });
 
     async function loadLocation() {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== 'granted') {
-        await refreshNearbyCenters(FALLBACK_LOCATION);
-        return;
+        return; // Resta sulla posizione demo (Salerno).
       }
 
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       if (cancelled) return;
 
-      const location = { latitude: position.coords.latitude, longitude: position.coords.longitude };
-      setUserLocation(location);
+      setUserLocation({ latitude: position.coords.latitude, longitude: position.coords.longitude });
       setLocationSource('gps');
-      await refreshNearbyCenters(location);
     }
 
     loadLocation().catch(() => {
       setLocationSource('demo');
       setUserLocation(FALLBACK_LOCATION);
-      refreshNearbyCenters(FALLBACK_LOCATION);
     });
 
     return () => {
@@ -160,7 +155,18 @@ export function BookingsScreen() {
       `${booking.centerName}\n${formatItalianDate(booking.dateTime)}`,
       [
         { text: 'Annulla', style: 'cancel' },
-        { text: 'Elimina', style: 'destructive', onPress: () => removeBooking(booking.id) },
+        {
+          text: 'Elimina',
+          style: 'destructive',
+          onPress: () => {
+            removeBooking(booking.id).catch((error) =>
+              Alert.alert(
+                'Eliminazione non riuscita',
+                error instanceof Error ? error.message : 'Riprova più tardi.'
+              )
+            );
+          },
+        },
       ]
     );
   }
@@ -188,6 +194,9 @@ export function BookingsScreen() {
                 title={center.name}
                 description={`${center.city} · ${formatDistance(center.distanceKm)} · tocca per prenotare`}
                 pinColor={colors.primary}
+                // Evita il flicker dei pin a ogni zoom/pan: il pin e statico,
+                // quindi non serve ridisegnare la view nativa di continuo.
+                tracksViewChanges={false}
                 onCalloutPress={() => openBooking(center.id)}
                 onPress={() => openBooking(center.id)}
               />

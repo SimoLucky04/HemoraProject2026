@@ -1,14 +1,14 @@
 import cors from 'cors';
 import express from 'express';
 import helmet from 'helmet';
-import type { HemoraDataStore } from './data/store';
+import type { AppStore } from './data/store';
 import { createRouter } from './routes';
 import { errorHandler, notFoundHandler } from './middlewares/errorHandler';
 import { requestLogger } from './middlewares/requestLogger';
 
 // Composizione dell'app: middleware -> router applicativi -> 404 -> error handler.
 // Riceve lo store per dependency injection (i test usano createApp(new MemoryStore())).
-export function createApp(store: HemoraDataStore) {
+export function createApp(store: AppStore) {
   const app = express();
 
   app.use(helmet());

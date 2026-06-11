@@ -15,13 +15,23 @@ import {
   Medication,
   RhFactor,
 } from '@app-types';
-import { fetchCollectionCenters, fetchEmergencies } from '@api/hemoraApi';
+import {
+  cancelBooking,
+  createBooking,
+  fetchBookings,
+  fetchCollectionCenters,
+  fetchEmergencies,
+} from '@api/hemoraApi';
 import { buildDemoProfile, emptyProfile, mockCenters, mockNotifications } from '@data/mockData';
 import { calculateNextEligibilityDate } from '@utils/donationEligibility';
 import { getDonationReminders } from '@utils/notifications';
 import { addDays, todayISO, uid } from '@utils/date';
 
 const STORAGE_KEY = '@hemora/state/v1';
+
+// Le prenotazioni vivono sul backend, identificate dall'email utente. Senza una
+// sessione usiamo un id "ospite" stabile, così la demo funziona anche senza login.
+const GUEST_EMAIL = 'guest@hemora.local';
 
 const initialState: HemoraState = {
   session: null,
@@ -59,8 +69,9 @@ type HemoraContextValue = {
   removeMedication: (id: string) => void;
   addEmergencyContact: (contact: Omit<EmergencyContact, 'id'>) => void;
   removeEmergencyContact: (id: string) => void;
-  bookDonation: (payload: { centerId: string; type: DonationType; dateTime: string }) => Booking;
-  removeBooking: (id: string) => void;
+  bookDonation: (payload: { centerId: string; type: DonationType; dateTime: string }) => Promise<Booking>;
+  removeBooking: (id: string) => Promise<void>;
+  refreshBookings: () => Promise<void>;
   reconcileDueBookings: () => void;
   markNotificationsRead: () => void;
   markDonationReminderRead: (id: string) => void;
@@ -173,6 +184,25 @@ export function HemoraProvider({ children }: PropsWithChildren) {
     };
   }, [isReady, bloodGroup, rh]);
 
+  // Prenotazioni dal backend (con fallback alla cache locale se offline).
+  const sessionEmail = state.session?.email ?? null;
+  useEffect(() => {
+    if (!isReady) return;
+
+    let cancelled = false;
+    fetchBookings(sessionEmail ?? GUEST_EMAIL)
+      .then((bookings) => {
+        if (!cancelled) setState((current) => ({ ...current, bookings }));
+      })
+      .catch(() => {
+        // Local-first: si tiene la cache locale quando il backend e offline.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isReady, sessionEmail]);
+
   // Una prenotazione il cui slot e passato diventa automaticamente una donazione
   // nello storico (e da quel momento guida l'idoneita futura).
   const reconcileDueBookings = useCallback(() => {
@@ -182,6 +212,11 @@ export function HemoraProvider({ children }: PropsWithChildren) {
         (booking) => booking.status === 'Confermata' && new Date(booking.dateTime).getTime() <= now
       );
       if (due.length === 0) return current;
+
+      // La prenotazione scaduta diventa una donazione locale: la togliamo dal
+      // backend (fire-and-forget) così una futura GET non la riproponga.
+      const userEmail = current.session?.email ?? GUEST_EMAIL;
+      void Promise.allSettled(due.map((booking) => cancelBooking(userEmail, booking.id)));
 
       const completed: Donation[] = due.map((booking) => {
         const date = booking.dateTime.slice(0, 10);
@@ -310,24 +345,33 @@ export function HemoraProvider({ children }: PropsWithChildren) {
           },
         }));
       },
-      bookDonation({ centerId, type, dateTime }) {
-        const center = state.centers.find((item) => item.id === centerId);
-        const booking: Booking = {
-          id: uid('booking'),
+      async bookDonation({ centerId, type, dateTime }) {
+        // Prenotazione creata e validata dal backend (centro, slot, unicità).
+        const userEmail = state.session?.email ?? GUEST_EMAIL;
+        const booking = await createBooking(userEmail, {
           centerId,
-          centerName: center?.name ?? 'Centro selezionato',
           type,
           dateTime: dateTime || `${todayISO()}T09:00:00`,
-          status: 'Confermata',
-        };
+        });
         setState((current) => ({ ...current, bookings: [booking, ...current.bookings] }));
         return booking;
       },
-      removeBooking(id) {
+      async removeBooking(id) {
+        const userEmail = state.session?.email ?? GUEST_EMAIL;
+        await cancelBooking(userEmail, id);
         setState((current) => ({
           ...current,
           bookings: current.bookings.filter((item) => item.id !== id),
         }));
+      },
+      async refreshBookings() {
+        const userEmail = state.session?.email ?? GUEST_EMAIL;
+        try {
+          const bookings = await fetchBookings(userEmail);
+          setState((current) => ({ ...current, bookings }));
+        } catch {
+          // Local-first: si tiene la cache locale quando il backend e offline.
+        }
       },
       reconcileDueBookings,
       markNotificationsRead() {

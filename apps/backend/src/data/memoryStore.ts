@@ -1,6 +1,6 @@
-import type { CollectionCenter, EmergencyBloodAlertDto } from '@hemora/shared-types';
+import type { Booking, CollectionCenter, EmergencyBloodAlertDto } from '@hemora/shared-types';
 import type {
-  HemoraDataStore,
+  AppStore,
   ListCentersOptions,
   ListEmergenciesFilter,
   ListEmergencyAlertsOptions,
@@ -71,7 +71,11 @@ function distanceKm(
 // Store di sola lettura sui dati condivisi/simulati: centri reali della Campania
 // ed emergenze sangue demo, tutto in memoria per restare leggero. Profilo e
 // prenotazioni restano locali nell'app (local-first).
-export class MemoryStore implements HemoraDataStore {
+export class MemoryStore implements AppStore {
+  // Prenotazioni per utente (chiave = email). Simulate in memoria: si azzerano
+  // al riavvio del backend, coerente con la natura demo del progetto.
+  private readonly bookingsByUser = new Map<string, Booking[]>();
+
   constructor(
     private readonly centers = demoCenters,
     private readonly alerts = demoEmergencyAlerts,
@@ -133,5 +137,26 @@ export class MemoryStore implements HemoraDataStore {
   private isActive(alert: EmergencyBloodAlertDto) {
     if (!alert.activeUntil) return true;
     return new Date(alert.activeUntil).getTime() >= Date.now();
+  }
+
+  // --- Prenotazioni -------------------------------------------------------
+  async listBookings(userId: string) {
+    return this.bookingsByUser.get(userId) ?? [];
+  }
+
+  async createBooking(userId: string, booking: Booking) {
+    const list = this.bookingsByUser.get(userId) ?? [];
+    list.push(booking);
+    this.bookingsByUser.set(userId, list);
+    return booking;
+  }
+
+  async cancelBooking(userId: string, bookingId: string) {
+    const list = this.bookingsByUser.get(userId);
+    if (!list) return false;
+    const index = list.findIndex((booking) => booking.id === bookingId);
+    if (index === -1) return false;
+    list.splice(index, 1);
+    return true;
   }
 }
