@@ -1,6 +1,6 @@
 # @hemora/shared-types
 
-Unica fonte di verità dei **tipi di dominio condivisi** tra app (`apps/mobile`) e backend (`apps/backend`): gruppo sanguigno, fattore Rh, tipo di donazione, centro di raccolta, emergenza sangue.
+Unica fonte di verità dei **tipi di dominio condivisi** tra app (`apps/mobile`) e backend (`apps/backend`): gruppo sanguigno, fattore Rh, tipo di donazione, centro di raccolta, emergenza sangue e **prenotazione** (`Booking`, `CreateBookingInput`).
 
 Consumato come dipendenza di workspace:
 
@@ -14,4 +14,4 @@ Viene buildato in `dist/` (JS + dichiarazioni `.d.ts`) tramite `tsc`. Lo script 
 npm run shared:build
 ```
 
-I tipi puramente applicativi (profilo, prenotazioni, stato UI) restano nell'app; quelli interni al server (es. l'interfaccia dello store) restano nel backend. Lato app, varianti per i form (es. gruppo sanguigno con valore vuoto) sono derivate localmente dai tipi canonici di questo pacchetto.
+I tipi puramente applicativi (profilo sanitario, stato UI) restano nell'app; quelli interni al server (es. l'interfaccia dello store) restano nel backend. Lato app, varianti per i form (es. gruppo sanguigno con valore vuoto) sono derivate localmente dai tipi canonici di questo pacchetto.

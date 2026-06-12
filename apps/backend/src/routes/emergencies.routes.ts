@@ -7,6 +7,7 @@ export function createEmergenciesRoutes(store: HemoraDataStore) {
   const router = Router();
   const controller = createEmergenciesController(store);
   router.get('/emergency-alerts', controller.listAlerts);
+  router.get('/emergency-feed', controller.listFeed);
   router.get('/emergencies', controller.listFiltered);
   return router;
 }

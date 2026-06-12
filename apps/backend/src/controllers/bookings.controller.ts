@@ -97,5 +97,20 @@ export function createBookingsController(store: AppStore) {
         next(error);
       }
     },
+
+    // Cancella TUTTE le prenotazioni dell'utente (reset dati account). Idempotente.
+    async clearAll(req: Request, res: Response, next: NextFunction) {
+      try {
+        const userId = getUserId(req);
+        if (!userId) {
+          res.status(400).json({ error: 'Header X-User-Email mancante' });
+          return;
+        }
+        await store.clearBookings(userId);
+        res.json({ data: { cleared: true } });
+      } catch (error) {
+        next(error);
+      }
+    },
   };
 }

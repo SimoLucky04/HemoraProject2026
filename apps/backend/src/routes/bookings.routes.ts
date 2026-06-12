@@ -8,6 +8,7 @@ export function createBookingsRoutes(store: AppStore) {
   const controller = createBookingsController(store);
   router.get('/', controller.list);
   router.post('/', controller.create);
+  router.delete('/', controller.clearAll);
   router.delete('/:id', controller.cancel);
   return router;
 }

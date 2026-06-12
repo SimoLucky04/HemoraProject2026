@@ -2,7 +2,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState } from 'react-native';
 import React, { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
-  BloodGroup,
   Booking,
   CollectionCenter,
   Condition,
@@ -13,18 +12,24 @@ import {
   HemoraState,
   HealthProfile,
   Medication,
-  RhFactor,
 } from '@app-types';
 import {
   cancelBooking,
+  clearBookings,
   createBooking,
   fetchBookings,
   fetchCollectionCenters,
-  fetchEmergencies,
+  fetchEmergencyFeed,
 } from '@api/hemoraApi';
 import { buildDemoProfile, emptyProfile, mockCenters, mockNotifications } from '@data/mockData';
 import { calculateNextEligibilityDate } from '@utils/donationEligibility';
 import { getDonationReminders } from '@utils/notifications';
+import {
+  startEmergencyPushSimulation,
+  presentEmergencyPush,
+  pickRandomEmergency,
+  type EmergencyCase,
+} from '@utils/emergencySimulator';
 import { addDays, todayISO, uid } from '@utils/date';
 
 const STORAGE_KEY = '@hemora/state/v1';
@@ -32,6 +37,11 @@ const STORAGE_KEY = '@hemora/state/v1';
 // Le prenotazioni vivono sul backend, identificate dall'email utente. Senza una
 // sessione usiamo un id "ospite" stabile, così la demo funziona anche senza login.
 const GUEST_EMAIL = 'guest@hemora.local';
+
+// Prefisso delle notifiche d'emergenza simulate, e tetto massimo per non far
+// crescere all'infinito l'elenco salvato (le altre notifiche non sono toccate).
+const EMERGENCY_SIM_PREFIX = 'emergency-sim-';
+const MAX_SIM_NOTIFICATIONS = 20;
 
 const initialState: HemoraState = {
   session: null,
@@ -81,7 +91,7 @@ type HemoraContextValue = {
   // --- Strumenti demo/admin (solo per test e presentazione) ---
   seedDemoProfile: () => void;
   addDemoDonation: (type: DonationType, daysAgo: number) => void;
-  pushDemoEmergency: () => void;
+  pushDemoEmergency: () => Promise<boolean>;
   clearReadReminders: () => void;
   // Contatore effimero: ogni incremento forza la Dashboard a mostrare il popup idoneità.
   eligibilityPopupPing: number;
@@ -94,21 +104,54 @@ function mergeCenters(centers?: CollectionCenter[]) {
   return centers && centers.length > 0 ? centers : mockCenters;
 }
 
-function preserveReadState(
-  remoteNotifications: EmergencyNotification[],
-  currentNotifications: EmergencyNotification[],
-) {
-  return remoteNotifications.map((notification) => {
-    const current = currentNotifications.find((item) => item.id === notification.id);
-    return { ...notification, read: current?.read ?? notification.read };
-  });
-}
-
 export function HemoraProvider({ children }: PropsWithChildren) {
   const [state, setState] = useState<HemoraState>(initialState);
   const [isReady, setReady] = useState(false);
   // Non persistito: serve solo a riaprire il popup idoneità su richiesta (admin/demo).
   const [eligibilityPopupPing, setEligibilityPopupPing] = useState(0);
+  // Pool dei casi d'emergenza (casi locali + carenze del backend), letto sia dal
+  // loop di simulazione sia dal pulsante "Simula emergenza".
+  // Salva UNA emergenza nell'elenco notifiche in-app (come le idoneità) e la
+  // mostra come notifica push di sistema (best-effort).
+  const fireEmergency = useCallback((emergencyCase: EmergencyCase) => {
+    const notification: EmergencyNotification = {
+      id: `${EMERGENCY_SIM_PREFIX}${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      centerName: emergencyCase.title,
+      requestedGroup: '',
+      rh: '',
+      urgency: 'Alta',
+      message: emergencyCase.body,
+      sentAt: new Date().toISOString(),
+      read: false,
+    };
+    setState((current) => {
+      const next = [notification, ...current.notifications];
+      const sims = next.filter((item) => item.id.startsWith(EMERGENCY_SIM_PREFIX));
+      if (sims.length <= MAX_SIM_NOTIFICATIONS) return { ...current, notifications: next };
+      // Tieni solo le emergenze simulate più recenti; le altre notifiche restano.
+      const keep = new Set(sims.slice(0, MAX_SIM_NOTIFICATIONS).map((item) => item.id));
+      return {
+        ...current,
+        notifications: next.filter((item) => !item.id.startsWith(EMERGENCY_SIM_PREFIX) || keep.has(item.id)),
+      };
+    });
+    void presentEmergencyPush(emergencyCase);
+  }, []);
+
+  // Procura UNA emergenza dal backend (feed) e la innesca. Senza backend non
+  // mostra nulla: emergenze e prenotazioni dipendono entrambe dal server.
+  // Ritorna true se un'emergenza è stata effettivamente innescata.
+  const fireRandomEmergency = useCallback(async (): Promise<boolean> => {
+    try {
+      const items = await fetchEmergencyFeed();
+      const chosen = pickRandomEmergency(items.map((item) => ({ title: item.title, body: item.body })));
+      if (!chosen) return false;
+      fireEmergency(chosen);
+      return true;
+    } catch {
+      return false; // Backend non raggiungibile: nessuna emergenza.
+    }
+  }, [fireEmergency]);
 
   useEffect(() => {
     async function load() {
@@ -120,9 +163,13 @@ export function HemoraProvider({ children }: PropsWithChildren) {
             ...initialState,
             ...parsed,
             centers: mergeCenters(parsed.centers),
-            // Le notifiche persistite (gia filtrate per compatibilita) restano
-            // tali e quali: un elenco vuoto e legittimo (nessuna emergenza per te).
-            notifications: parsed.notifications ?? mockNotifications,
+            // L'elenco in-app mostra solo la notifica locale (benvenuto):
+            // partiamo dal mock preservando lo stato letto/non-letto salvato.
+            // Eventuali vecchie emergenze del backend persistite vengono scartate.
+            notifications: mockNotifications.map((notification) => {
+              const saved = parsed.notifications?.find((item) => item.id === notification.id);
+              return saved ? { ...notification, read: saved.read } : notification;
+            }),
             readDonationReminders: parsed.readDonationReminders ?? [],
           });
         }
@@ -156,33 +203,15 @@ export function HemoraProvider({ children }: PropsWithChildren) {
     };
   }, [isReady]);
 
-  // Emergenze sangue filtrate per il gruppo del donatore: mostriamo solo quelle
-  // per cui l'utente e compatibile. Si riallinea quando cambia gruppo o Rh.
-  const { bloodGroup, rh } = state.profile;
+  // Emergenze come notifiche PUSH simulate: a intervalli casuali (una alla
+  // volta) il loop chiede un'emergenza al backend e la mostra. Senza backend
+  // non scatta nulla (gli scenari vivono SOLO sul server, come le prenotazioni).
   useEffect(() => {
     if (!isReady) return;
-
-    let cancelled = false;
-    const filter = bloodGroup && rh ? { bloodType: bloodGroup, rh } : undefined;
-    fetchEmergencies(filter)
-      .then((notifications) => {
-        // Un elenco vuoto e un risultato valido (nessuna emergenza compatibile):
-        // non si rimpiazza col mock, si rispetta cio che dice il backend.
-        if (!cancelled) {
-          setState((current) => ({
-            ...current,
-            notifications: preserveReadState(notifications, current.notifications),
-          }));
-        }
-      })
-      .catch(() => {
-        // Local-first: si tengono le notifiche correnti quando il backend e offline.
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isReady, bloodGroup, rh]);
+    return startEmergencyPushSimulation(() => {
+      void fireRandomEmergency();
+    });
+  }, [isReady, fireRandomEmergency]);
 
   // Prenotazioni dal backend (con fallback alla cache locale se offline).
   const sessionEmail = state.session?.email ?? null;
@@ -279,6 +308,12 @@ export function HemoraProvider({ children }: PropsWithChildren) {
         setState((current) => ({ ...current, session: null }));
       },
       async deleteAccount() {
+        // Le prenotazioni vivono sul backend (per email): vanno cancellate anche
+        // lì, altrimenti restano "fantasma" e bloccano le nuove prenotazioni.
+        const userEmail = state.session?.email ?? GUEST_EMAIL;
+        await clearBookings(userEmail).catch(() => {
+          // Best-effort: se il backend è offline procediamo col reset locale.
+        });
         await AsyncStorage.removeItem(STORAGE_KEY);
         setState(initialState);
       },
@@ -432,22 +467,9 @@ export function HemoraProvider({ children }: PropsWithChildren) {
         setState((current) => ({ ...current, donations: [donation, ...current.donations] }));
       },
       pushDemoEmergency() {
-        const groups: BloodGroup[] = ['0', 'A', 'B', 'AB'];
-        const rhs: RhFactor[] = ['+', '-'];
-        const group = groups[Math.floor(Math.random() * groups.length)];
-        const rh = rhs[Math.floor(Math.random() * rhs.length)];
-        const center = mockCenters[Math.floor(Math.random() * mockCenters.length)];
-        const notification: EmergencyNotification = {
-          id: uid('notification'),
-          centerName: center?.name ?? 'Centro trasfusionale',
-          requestedGroup: group,
-          rh,
-          urgency: 'Alta',
-          message: `Richiesta urgente di sangue ${group}${rh}. Prenota se sei idoneo.`,
-          sentAt: new Date().toISOString(),
-          read: false,
-        };
-        setState((current) => ({ ...current, notifications: [notification, ...current.notifications] }));
+        // Chiede un'emergenza al backend e la innesca: compare in Notifiche e
+        // arriva come push. Senza backend non scatta nulla (ritorna false).
+        return fireRandomEmergency();
       },
       clearReadReminders() {
         setState((current) =>
@@ -461,7 +483,7 @@ export function HemoraProvider({ children }: PropsWithChildren) {
         setEligibilityPopupPing((value) => value + 1);
       },
     };
-  }, [state, isReady, eligibilityPopupPing]);
+  }, [state, isReady, eligibilityPopupPing, fireRandomEmergency]);
 
   return <HemoraContext.Provider value={value}>{children}</HemoraContext.Provider>;
 }

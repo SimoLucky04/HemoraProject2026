@@ -1,4 +1,4 @@
-import { Booking, CollectionCenter, CreateBookingInput, EmergencyNotification } from '@app-types';
+import { Booking, CollectionCenter, CreateBookingInput, EmergencyFeedItem } from '@app-types';
 
 declare const process: {
   env?: {
@@ -7,16 +7,6 @@ declare const process: {
 };
 
 const HEMORA_API_URL = process.env?.EXPO_PUBLIC_HEMORA_API_URL || 'http://localhost:4000';
-
-type ApiEmergencyAlert = {
-  id: string;
-  centerName: string;
-  requestedGroup: EmergencyNotification['requestedGroup'];
-  rh: EmergencyNotification['rh'];
-  urgency: EmergencyNotification['urgency'];
-  message: string;
-  sentAt: string;
-};
 
 type ApiListResponse<T> = {
   data: T[];
@@ -30,19 +20,6 @@ async function getJson<T>(path: string): Promise<T> {
     throw new Error(`Hemora API error ${response.status}`);
   }
   return response.json() as Promise<T>;
-}
-
-function mapAlert(alert: ApiEmergencyAlert): EmergencyNotification {
-  return {
-    id: alert.id,
-    centerName: alert.centerName,
-    requestedGroup: alert.requestedGroup,
-    rh: alert.rh,
-    urgency: alert.urgency,
-    message: alert.message,
-    sentAt: alert.sentAt,
-    read: false,
-  };
 }
 
 // --- Centri di raccolta ----------------------------------------------------
@@ -62,21 +39,11 @@ export async function fetchCollectionCenters(params?: {
   return response.data;
 }
 
-// --- Emergenze sangue ------------------------------------------------------
-// Restituisce le emergenze attive. Se si passa il gruppo/Rh del donatore, il
-// backend filtra e ritorna solo quelle per cui l'utente e compatibile.
-export async function fetchEmergencies(filter?: {
-  bloodType?: string;
-  rh?: string;
-  city?: string;
-}): Promise<EmergencyNotification[]> {
-  const params = new URLSearchParams();
-  if (filter?.bloodType) params.set('bloodType', filter.bloodType);
-  if (filter?.rh) params.set('rh', filter.rh);
-  if (filter?.city) params.set('city', filter.city);
-  const query = params.toString() ? `?${params.toString()}` : '';
-  const response = await getJson<ApiListResponse<ApiEmergencyAlert>>(`/api/emergencies${query}`);
-  return response.data.map(mapAlert);
+// --- Feed emergenze (notifiche push simulate) ------------------------------
+// Scenari d'emergenza definiti dal backend, usati come pool per le push.
+export async function fetchEmergencyFeed(): Promise<EmergencyFeedItem[]> {
+  const response = await getJson<ApiListResponse<EmergencyFeedItem>>('/api/emergency-feed');
+  return response.data;
 }
 
 // --- Prenotazioni (gestite dal backend) ------------------------------------
@@ -120,6 +87,14 @@ export async function createBooking(userEmail: string, input: CreateBookingInput
 
 export async function cancelBooking(userEmail: string, bookingId: string): Promise<void> {
   await sendJson(`/api/bookings/${encodeURIComponent(bookingId)}`, {
+    method: 'DELETE',
+    userEmail,
+  });
+}
+
+// Cancella TUTTE le prenotazioni dell'utente sul backend (usata al reset account).
+export async function clearBookings(userEmail: string): Promise<void> {
+  await sendJson('/api/bookings', {
     method: 'DELETE',
     userEmail,
   });

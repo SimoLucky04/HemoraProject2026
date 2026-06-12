@@ -1,24 +1,21 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { AppButton } from '@components/AppButton';
 import { Card } from '@components/Card';
 import { DatePickerField } from '@components/DatePickerField';
 import { nestedScreenEdges, Screen } from '@components/Screen';
+import { SelectField } from '@components/SelectField';
 import { Muted, SectionTitle } from '@components/TextBlocks';
 import { useHemora } from '@context/HemoraContext';
 import type { DonationsStackParamList } from '@navigation/MainTabs';
 import { DonationType } from '@app-types';
-import { colors, radius, spacing } from '@theme';
+import { colors, spacing } from '@theme';
 import { addDays, formatItalianDate, todayISO } from '@utils/date';
-import {
-  getActiveBookingForType,
-  getEligibilityDateForType,
-  getSlotConflict,
-  isEligibleForType,
-} from '@utils/donationRules';
+import { distanceKm, formatDistance } from '@utils/geo';
+import { getActiveBooking, getEligibilityDateForType, isEligibleForType } from '@utils/donationRules';
+import { getMissingEssentialFields } from '@utils/emergencyProfile';
 
 const DONATION_TYPES: DonationType[] = ['Sangue intero', 'Plasma', 'Piastrine'];
 // Slot orari dalle 8:00 alle 12:00.
@@ -54,33 +51,57 @@ export function BookingCreateScreen() {
   const minBookingISO = addDays(todayISO(), 1);
 
   const [centerId, setCenterId] = useState<string | undefined>(route.params?.centerId);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [type, setType] = useState<DonationType>('Sangue intero');
   const [date, setDate] = useState<string>(() => nextWeekday(minBookingISO));
   const [hour, setHour] = useState<number | null>(null);
 
   const selectedCenter = state.centers.find((center) => center.id === centerId);
 
-  // Logica collegata alle donazioni: idoneita e unicita valutate per tipo.
+  // Opzioni del menu a tendina: nome + sotto-descrizione "città · distanza".
+  // La distanza usa la posizione passata dalla mappa (GPS o demo); se assente,
+  // mostriamo almeno la città.
+  const userLocation = route.params?.userLocation;
+  const centerOptions = state.centers.map((center) => ({
+    value: center.name,
+    description: userLocation
+      ? `${center.city} · ${formatDistance(
+          distanceKm(userLocation, { latitude: center.latitude, longitude: center.longitude }),
+        )}`
+      : center.city,
+  }));
+
+  // Servono i dati essenziali (come per il QR, ma senza contatto di emergenza).
+  const missingEssential = getMissingEssentialFields(state.profile);
+  const hasEssential = missingEssential.length === 0;
+
+  // Idoneita per il tipo scelto (dipende dallo storico donazioni) e vincolo di
+  // UNA sola prenotazione attiva alla volta, indipendentemente dal tipo.
   const eligibleForType = isEligibleForType(state.donations, type);
   const nextEligibilityForType = getEligibilityDateForType(state.donations, type);
-  const existingTypeBooking = getActiveBookingForType(state.bookings, type);
-  const canBook = eligibleForType && !existingTypeBooking;
+  const existingBooking = getActiveBooking(state.bookings);
+  const canBook = hasEssential && eligibleForType && !existingBooking;
 
   async function confirm() {
+    if (!hasEssential) {
+      Alert.alert(
+        'Completa i dati essenziali',
+        `Prima di prenotare inserisci in Profilo › Dati essenziali: ${missingEssential.join(', ')}.`
+      );
+      return;
+    }
     if (!centerId) {
       Alert.alert('Centro mancante', 'Seleziona un centro di raccolta.');
       return;
     }
-    if (!eligibleForType) {
-      Alert.alert('Non ancora idoneo', `Per ${type} potrai prenotare dal ${formatItalianDate(nextEligibilityForType!)}.`);
+    if (existingBooking) {
+      Alert.alert(
+        'Hai già una prenotazione',
+        `Hai già una prenotazione attiva (${existingBooking.type} il ${formatItalianDate(existingBooking.dateTime)}). Puoi avere una sola prenotazione alla volta: eliminala dalla sezione Prenotazioni per crearne un'altra.`
+      );
       return;
     }
-    if (existingTypeBooking) {
-      Alert.alert(
-        'Prenotazione già presente',
-        `Hai già una prenotazione per ${type} il ${formatItalianDate(existingTypeBooking.dateTime)}. Eliminala per prenotarne un'altra dello stesso tipo.`
-      );
+    if (!eligibleForType) {
+      Alert.alert('Non ancora idoneo', `Per ${type} potrai prenotare dal ${formatItalianDate(nextEligibilityForType!)}.`);
       return;
     }
     if (date < minBookingISO) {
@@ -99,10 +120,6 @@ export function BookingCreateScreen() {
     const dateTime = `${date}T${String(hour).padStart(2, '0')}:00:00`;
     if (new Date(dateTime).getTime() <= Date.now()) {
       Alert.alert('Orario non valido', 'Lo slot scelto è già passato: scegli un giorno o un orario futuro.');
-      return;
-    }
-    if (getSlotConflict(state.bookings, dateTime)) {
-      Alert.alert('Slot occupato', 'Hai già una prenotazione per questo giorno e orario.');
       return;
     }
 
@@ -125,49 +142,32 @@ export function BookingCreateScreen() {
   return (
     <Screen safeAreaEdges={nestedScreenEdges}>
 
+      {!hasEssential && (
+        <Card tone="critical">
+          <SectionTitle>Completa i dati essenziali</SectionTitle>
+          <Muted>Per prenotare servono prima i tuoi dati essenziali (Profilo › Dati essenziali):</Muted>
+          <Text style={styles.missing}>{missingEssential.join(', ')}</Text>
+        </Card>
+      )}
+
       <Card>
         <SectionTitle>Centro di raccolta</SectionTitle>
         {state.centers.length === 0 ? (
           <Muted>Nessun centro disponibile al momento.</Muted>
         ) : (
           <>
-            <Pressable
-              onPress={() => setDropdownOpen((open) => !open)}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: dropdownOpen }}
-              accessibilityLabel={selectedCenter ? `Centro selezionato: ${selectedCenter.name}` : 'Seleziona un centro'}
-              style={({ pressed }) => [styles.dropdownField, pressed && styles.dropdownFieldPressed]}
-            >
-              <Text style={[styles.dropdownValue, !selectedCenter && styles.dropdownPlaceholder]} numberOfLines={1}>
-                {selectedCenter ? selectedCenter.name : 'Seleziona un centro'}
-              </Text>
-              <Ionicons name={dropdownOpen ? 'chevron-up' : 'chevron-down'} size={22} color={colors.primaryDark} />
-            </Pressable>
-
-            {dropdownOpen && (
-              <View style={styles.dropdownList}>
-                {state.centers.map((center) => {
-                  const selected = center.id === centerId;
-                  return (
-                    <Pressable
-                      key={center.id}
-                      onPress={() => {
-                        setCenterId(center.id);
-                        setDropdownOpen(false);
-                      }}
-                      accessibilityRole="menuitem"
-                      accessibilityState={{ selected }}
-                      style={({ pressed }) => [styles.dropdownItem, pressed && styles.optionPressed]}
-                    >
-                      <View style={styles.optionText}>
-                        <Text style={styles.optionTitle}>{center.name}</Text>
-                        <Muted>{center.address}, {center.city}</Muted>
-                      </View>
-                      {selected && <Ionicons name="checkmark" size={20} color={colors.primary} />}
-                    </Pressable>
-                  );
-                })}
-              </View>
+            <SelectField
+              label="Centro"
+              value={selectedCenter?.name ?? ''}
+              options={centerOptions}
+              onChange={(name) => {
+                const match = state.centers.find((center) => center.name === name);
+                if (match) setCenterId(match.id);
+              }}
+              placeholder="Seleziona un centro"
+            />
+            {selectedCenter && (
+              <Muted>{selectedCenter.address}, {selectedCenter.city}</Muted>
             )}
           </>
         )}
@@ -182,20 +182,20 @@ export function BookingCreateScreen() {
         </View>
       </Card>
 
-      {!eligibleForType && (
-        <Card tone="critical">
-          <SectionTitle>Non ancora idoneo</SectionTitle>
-          <Muted>Per {type} potrai prenotare di nuovo dal {formatItalianDate(nextEligibilityForType!)}.</Muted>
-        </Card>
-      )}
-
-      {eligibleForType && existingTypeBooking && (
+      {existingBooking && (
         <Card tone="critical">
           <SectionTitle>Hai già una prenotazione</SectionTitle>
           <Muted>
-            Per {type} hai già una prenotazione il {formatItalianDate(existingTypeBooking.dateTime)}. Eliminala dalla
-            sezione Prenotazioni per prenotarne un'altra dello stesso tipo.
+            Hai una prenotazione attiva ({existingBooking.type} il {formatItalianDate(existingBooking.dateTime)}). Puoi
+            avere una sola prenotazione alla volta: eliminala dalla sezione Prenotazioni per crearne un'altra.
           </Muted>
+        </Card>
+      )}
+
+      {!existingBooking && !eligibleForType && (
+        <Card tone="critical">
+          <SectionTitle>Non ancora idoneo</SectionTitle>
+          <Muted>Per {type} potrai prenotare di nuovo dal {formatItalianDate(nextEligibilityForType!)}.</Muted>
         </Card>
       )}
 
@@ -230,58 +230,6 @@ export function BookingCreateScreen() {
 }
 
 const styles = StyleSheet.create({
-  dropdownField: {
-    minHeight: 52,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  dropdownFieldPressed: {
-    borderColor: colors.primary,
-  },
-  dropdownValue: {
-    color: colors.text,
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  dropdownPlaceholder: {
-    color: colors.muted,
-  },
-  dropdownList: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    marginTop: spacing.xs,
-    overflow: 'hidden',
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  optionPressed: {
-    opacity: 0.72,
-  },
-  optionText: {
-    flex: 1,
-  },
-  optionTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '900',
-    marginBottom: spacing.xs,
-  },
   optionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -298,5 +246,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 22,
     marginBottom: spacing.sm,
+  },
+  missing: {
+    color: colors.danger,
+    fontWeight: '800',
+    marginTop: spacing.sm,
+    lineHeight: 22,
   },
 });

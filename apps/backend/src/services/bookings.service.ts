@@ -6,8 +6,8 @@ export const SLOT_HOURS = [8, 9, 10, 11, 12];
 export type BookingValidation = { ok: true } | { ok: false; status: number; error: string };
 
 // Regole di prenotazione (le stesse del client, qui come autorita lato server):
-// giorno feriale, slot 8–12, almeno dal giorno successivo, una sola
-// prenotazione attiva per tipo e nessun doppione sullo stesso slot.
+// giorno feriale, slot 8–12, almeno dal giorno successivo e UNA sola
+// prenotazione attiva alla volta (qualsiasi tipo).
 // L'idoneita (che dipende dallo storico donazioni, locale all'app) NON e qui:
 // resta un pre-check nel frontend.
 export function validateNewBooking(
@@ -39,21 +39,15 @@ export function validateNewBooking(
     return { ok: false, status: 400, error: 'Slot orario non valido: scegli tra le 8:00 e le 12:00' };
   }
 
-  // Una sola prenotazione attiva per tipo.
-  const sameType = existingBookings.find(
-    (booking) => booking.status === 'Confermata' && booking.type === input.type,
-  );
-  if (sameType) {
-    return { ok: false, status: 409, error: `Hai già una prenotazione attiva per ${input.type}` };
-  }
-
-  // Niente due prenotazioni nello stesso giorno+ora (confronto su YYYY-MM-DDTHH).
-  const slotKey = input.dateTime.slice(0, 13);
-  const conflict = existingBookings.find(
-    (booking) => booking.status === 'Confermata' && booking.dateTime.slice(0, 13) === slotKey,
-  );
-  if (conflict) {
-    return { ok: false, status: 409, error: 'Slot già occupato da un\'altra prenotazione' };
+  // Una sola prenotazione attiva alla volta, indipendentemente dal tipo:
+  // coerente con l'idoneita, non si pianificano due donazioni ravvicinate.
+  const active = existingBookings.find((booking) => booking.status === 'Confermata');
+  if (active) {
+    return {
+      ok: false,
+      status: 409,
+      error: 'Hai già una prenotazione attiva: puoi prenotarne una sola alla volta',
+    };
   }
 
   return { ok: true };

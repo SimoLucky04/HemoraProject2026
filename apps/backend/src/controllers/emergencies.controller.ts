@@ -17,6 +17,16 @@ export function createEmergenciesController(store: HemoraDataStore) {
       }
     },
 
+    // Feed degli scenari d'emergenza per le notifiche push simulate dell'app.
+    async listFeed(_req: Request, res: Response, next: NextFunction) {
+      try {
+        const feed = await store.listEmergencyFeed();
+        res.json({ data: feed });
+      } catch (error) {
+        next(error);
+      }
+    },
+
     // Emergenze filtrabili per gruppo/Rh del donatore e citta.
     // Esempio: GET /api/emergencies?bloodType=A&rh=positive&city=Salerno
     async listFiltered(req: Request, res: Response, next: NextFunction) {

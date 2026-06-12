@@ -8,6 +8,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import MapView, { Marker, Region } from 'react-native-maps';
 import { AppButton } from '@components/AppButton';
 import { Card } from '@components/Card';
+import { MissingDataSheet } from '@components/MissingDataSheet';
 import { nestedScreenEdges, Screen } from '@components/Screen';
 import { Badge, Muted, Row, SectionTitle } from '@components/TextBlocks';
 import { useHemora } from '@context/HemoraContext';
@@ -15,32 +16,14 @@ import type { DonationsStackParamList } from '@navigation/MainTabs';
 import { Booking, CollectionCenter } from '@app-types';
 import { colors, radius, spacing } from '@theme';
 import { formatItalianDate } from '@utils/date';
+import { getMissingEssentialFields } from '@utils/emergencyProfile';
+import { distanceKm, formatDistance, type GeoPoint } from '@utils/geo';
 
 type Navigation = NativeStackNavigationProp<DonationsStackParamList>;
-type MapPoint = { latitude: number; longitude: number };
+type MapPoint = GeoPoint;
 type CenterWithDistance = CollectionCenter & { distanceKm: number };
 
 const FALLBACK_LOCATION: MapPoint = { latitude: 40.6824, longitude: 14.7681 };
-
-function toRadians(value: number) {
-  return (value * Math.PI) / 180;
-}
-
-function distanceKm(from: MapPoint, to: MapPoint) {
-  const earthRadiusKm = 6371;
-  const dLat = toRadians(to.latitude - from.latitude);
-  const dLon = toRadians(to.longitude - from.longitude);
-  const lat1 = toRadians(from.latitude);
-  const lat2 = toRadians(to.latitude);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function formatDistance(value: number) {
-  return value < 1 ? `${Math.round(value * 1000)} m` : `${value.toFixed(1)} km`;
-}
 
 // Calcola una regione che racchiude tutti i punti, cosi la mappa mostra ogni
 // centro e non solo uno (con un minimo di zoom per evitare delta troppo piccoli).
@@ -77,8 +60,15 @@ export function BookingsScreen() {
     }, [reconcileDueBookings])
   );
   const mapRef = useRef<MapView>(null);
+  // Memorizza l'ultimo tocco su un pin per distinguere tap singolo da doppio.
+  const lastMarkerTap = useRef<{ id: string; time: number } | null>(null);
   const [userLocation, setUserLocation] = useState<MapPoint>(FALLBACK_LOCATION);
   const [locationSource, setLocationSource] = useState<'gps' | 'demo'>('demo');
+
+  // Le prenotazioni richiedono prima i dati essenziali (come per il QR, ma senza
+  // contatto di emergenza): se mancano, il pulsante apre una tendina esplicativa.
+  const missingEssential = useMemo(() => getMissingEssentialFields(state.profile), [state.profile]);
+  const [missingSheetVisible, setMissingSheetVisible] = useState(false);
 
   const [initialRegion] = useState<Region>(() =>
     regionForPoints(state.centers.map((center) => ({ latitude: center.latitude, longitude: center.longitude })))
@@ -145,8 +135,30 @@ export function BookingsScreen() {
     return [...state.bookings].sort((a, b) => a.dateTime.localeCompare(b.dateTime));
   }, [state.bookings]);
 
-  function openBooking(centerId?: string) {
-    navigation.navigate('NuovaPrenotazione', centerId ? { centerId } : undefined);
+  // Punto unico per avviare una prenotazione: se mancano i dati essenziali apre
+  // la tendina; altrimenti naviga passando posizione (e centro se scelto).
+  function startBooking(centerId?: string) {
+    if (missingEssential.length > 0) {
+      setMissingSheetVisible(true);
+      return;
+    }
+    // La posizione (GPS o demo) permette alla scelta del centro di mostrare la
+    // stessa distanza della mappa.
+    navigation.navigate('NuovaPrenotazione', { centerId, userLocation });
+  }
+
+  // Tap singolo su un pin: mostra solo il callout (titolo + info) del centro.
+  // Doppio tap sullo stesso pin entro 400ms: avvia la creazione prenotazione.
+  const DOUBLE_TAP_MS = 400;
+  function handleMarkerPress(centerId: string) {
+    const now = Date.now();
+    const previous = lastMarkerTap.current;
+    if (previous && previous.id === centerId && now - previous.time < DOUBLE_TAP_MS) {
+      lastMarkerTap.current = null;
+      startBooking(centerId);
+      return;
+    }
+    lastMarkerTap.current = { id: centerId, time: now };
   }
 
   function confirmDelete(booking: Booking) {
@@ -192,27 +204,27 @@ export function BookingsScreen() {
                 key={center.id}
                 coordinate={{ latitude: center.latitude, longitude: center.longitude }}
                 title={center.name}
-                description={`${center.city} · ${formatDistance(center.distanceKm)} · tocca per prenotare`}
+                description={`${center.city} · ${formatDistance(center.distanceKm)} `}
                 pinColor={colors.primary}
                 // Evita il flicker dei pin a ogni zoom/pan: il pin e statico,
                 // quindi non serve ridisegnare la view nativa di continuo.
                 tracksViewChanges={false}
-                onCalloutPress={() => openBooking(center.id)}
-                onPress={() => openBooking(center.id)}
+                onCalloutPress={() => startBooking(center.id)}
+                onPress={() => handleMarkerPress(center.id)}
               />
             ))}
           </MapView>
         </View>
         <Muted>
           {locationSource === 'gps'
-            ? 'Distanze calcolate dalla tua posizione. Tocca un centro per prenotare.'
-            : 'Permesso posizione non attivo: uso una posizione demo su Salerno. Tocca un centro per prenotare.'}
+            ? 'Distanze calcolate dalla tua posizione.'
+            : 'Permesso posizione non attivo: uso una posizione demo su Salerno.'}
         </Muted>
       </Card>
 
       <AppButton
         title="Prenota una donazione"
-        onPress={() => openBooking()}
+        onPress={() => startBooking()}
         accessibilityHint="Apre la schermata per scegliere centro, giorno e orario"
       />
 
@@ -252,6 +264,14 @@ export function BookingsScreen() {
           </>
         )}
       </Card>
+
+      <MissingDataSheet
+        visible={missingSheetVisible}
+        onClose={() => setMissingSheetVisible(false)}
+        title="Completa i dati essenziali"
+        intro="Per prenotare una donazione servono prima i tuoi dati essenziali (Profilo › Dati essenziali)."
+        fields={missingEssential}
+      />
     </Screen>
   );
 }

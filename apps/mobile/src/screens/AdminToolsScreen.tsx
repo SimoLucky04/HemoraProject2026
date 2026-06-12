@@ -61,9 +61,16 @@ export function AdminToolsScreen() {
     toast(`Prenotazione scaduta convertita in donazione "${type}" nello storico.`);
   }
 
-  function handleEmergency() {
-    pushDemoEmergency();
-    toast('Notifica di emergenza inviata. Aprila dal contatore Notifiche in Home.');
+  async function handleEmergency() {
+    const fired = await pushDemoEmergency();
+    if (fired) {
+      toast('Emergenza simulata: la trovi in Notifiche e, se i permessi push sono attivi, arriva anche come notifica di sistema.');
+    } else {
+      Alert.alert(
+        'Backend non raggiungibile',
+        'Gli scenari d\'emergenza arrivano dal backend: avvialo (Docker/tunnel) e riprova.'
+      );
+    }
   }
 
   function handleForcePopup() {
@@ -141,7 +148,8 @@ export function AdminToolsScreen() {
 
       <Card>
         <SectionTitle>Notifiche e popup (in-app)</SectionTitle>
-        <AppButton title="Invia notifica emergenza" onPress={handleEmergency} variant="primary" />
+        <Muted>Le emergenze compaiono in Notifiche (come le idoneità) e come push.</Muted>
+        <AppButton title="Simula emergenza ora" onPress={handleEmergency} variant="primary" />
         <AppButton title="Forza popup “Ora puoi donare”" onPress={handleForcePopup} variant="primary" />
       </Card>
 

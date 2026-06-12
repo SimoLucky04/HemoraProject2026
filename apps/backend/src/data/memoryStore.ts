@@ -1,4 +1,9 @@
-import type { Booking, CollectionCenter, EmergencyBloodAlertDto } from '@hemora/shared-types';
+import type {
+  Booking,
+  CollectionCenter,
+  EmergencyBloodAlertDto,
+  EmergencyFeedItem,
+} from '@hemora/shared-types';
 import type {
   AppStore,
   ListCentersOptions,
@@ -47,6 +52,18 @@ export const demoEmergencyAlerts: EmergencyBloodAlertDto[] = [
   },
 ];
 
+// Scenari d'emergenza per le notifiche push simulate. Centralizzati qui (lato
+// backend) così l'app deve solo schedularli. Aggiungi pure altri casi.
+export const demoEmergencyFeed: EmergencyFeedItem[] = [
+  { id: 'feed_0neg_salerno', title: '🩸 Carenza 0− · Salerno', body: 'Scorte critiche di 0− al Ruggi. Se sei idoneo, prenota una donazione.', urgency: 'Alta' },
+  { id: 'feed_abpos_napoli', title: '🩸 Piastrine AB+ · Napoli', body: 'Richiesta piastrine AB+ al Cardarelli. Ogni gruppo può aiutare.', urgency: 'Media' },
+  { id: 'feed_plasma_campania', title: '🩸 Plasma in calo · Campania', body: 'Scorte di plasma sotto soglia in regione: prenota una donazione di plasma.', urgency: 'Media' },
+  { id: 'feed_incidente_a2', title: '🚑 Incidente sulla A2', body: 'Maxi-richiesta di sangue dopo un incidente: servono A+ e 0− con urgenza.', urgency: 'Alta' },
+  { id: 'feed_neonatale', title: '👶 Emergenza neonatale', body: 'Richiesta urgente di sangue 0− per un reparto di neonatologia.', urgency: 'Alta' },
+  { id: 'feed_ustionati', title: '🔥 Centro grandi ustionati', body: 'Servono plasma e piastrine per pazienti ustionati: dona se idoneo.', urgency: 'Alta' },
+  { id: 'feed_talassemia', title: '🩸 Pazienti talassemici', body: 'Trasfusioni periodiche a rischio: serve sangue di tutti i gruppi.', urgency: 'Media' },
+];
+
 function toRadians(value: number) {
   return (value * Math.PI) / 180;
 }
@@ -79,6 +96,7 @@ export class MemoryStore implements AppStore {
   constructor(
     private readonly centers = demoCenters,
     private readonly alerts = demoEmergencyAlerts,
+    private readonly feed = demoEmergencyFeed,
   ) {}
 
   async listCenters(options: ListCentersOptions = {}) {
@@ -134,6 +152,10 @@ export class MemoryStore implements AppStore {
     });
   }
 
+  async listEmergencyFeed() {
+    return this.feed;
+  }
+
   private isActive(alert: EmergencyBloodAlertDto) {
     if (!alert.activeUntil) return true;
     return new Date(alert.activeUntil).getTime() >= Date.now();
@@ -158,5 +180,9 @@ export class MemoryStore implements AppStore {
     if (index === -1) return false;
     list.splice(index, 1);
     return true;
+  }
+
+  async clearBookings(userId: string) {
+    this.bookingsByUser.delete(userId);
   }
 }

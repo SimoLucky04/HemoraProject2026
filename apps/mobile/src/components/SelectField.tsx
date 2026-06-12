@@ -3,10 +3,16 @@ import React, { useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, radius, shadows, spacing } from '@theme';
 
+// Un'opzione può essere una semplice stringa (retrocompatibile) oppure un
+// oggetto con una sotto-descrizione (es. città · distanza del centro).
+export type SelectOption =
+  | string
+  | { value: string; label?: string; description?: string };
+
 type Props = {
   label: string;
   value: string;
-  options: readonly string[];
+  options: readonly SelectOption[];
   onChange: (value: string) => void;
   placeholder?: string;
 };
@@ -16,6 +22,14 @@ type Props = {
 export function SelectField({ label, value, options, onChange, placeholder = 'Seleziona...' }: Props) {
   const [open, setOpen] = useState(false);
 
+  // Normalizza: stringa → { value, label }; oggetto → label di fallback = value.
+  const items = options.map((option) =>
+    typeof option === 'string'
+      ? { value: option, label: option, description: undefined as string | undefined }
+      : { value: option.value, label: option.label ?? option.value, description: option.description },
+  );
+  const selectedLabel = value ? items.find((item) => item.value === value)?.label ?? value : '';
+
   return (
     <View style={styles.wrapper}>
       <Text style={styles.label}>{label}</Text>
@@ -23,12 +37,12 @@ export function SelectField({ label, value, options, onChange, placeholder = 'Se
         onPress={() => setOpen(true)}
         accessible
         accessibilityRole="button"
-        accessibilityLabel={`${label}: ${value || placeholder}`}
+        accessibilityLabel={`${label}: ${selectedLabel || placeholder}`}
         accessibilityHint="Apri il menu per scegliere"
         style={({ pressed }) => [styles.input, pressed && styles.inputPressed]}
       >
         <Text style={[styles.value, !value && styles.placeholder]} numberOfLines={1}>
-          {value || placeholder}
+          {selectedLabel || placeholder}
         </Text>
         <Ionicons name="chevron-down" size={20} color={colors.muted} />
       </Pressable>
@@ -48,26 +62,38 @@ export function SelectField({ label, value, options, onChange, placeholder = 'Se
               </Pressable>
             </View>
             <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-              {options.map((option) => {
-                const selected = option === value;
+              {items.map((item) => {
+                const selected = item.value === value;
                 return (
                   <Pressable
-                    key={option}
+                    key={item.value}
                     onPress={() => {
-                      onChange(option);
+                      onChange(item.value);
                       setOpen(false);
                     }}
                     accessible
                     accessibilityRole="button"
                     accessibilityState={{ selected }}
-                    accessibilityLabel={option}
+                    accessibilityLabel={item.description ? `${item.label}, ${item.description}` : item.label}
                     style={({ pressed }) => [
                       styles.option,
                       selected && styles.optionSelected,
                       pressed && styles.optionPressed,
                     ]}
                   >
-                    <Text style={[styles.optionText, selected && styles.optionTextSelected]}>{option}</Text>
+                    <View style={styles.optionTextWrap}>
+                      <Text style={[styles.optionText, selected && styles.optionTextSelected]} numberOfLines={1}>
+                        {item.label}
+                      </Text>
+                      {item.description ? (
+                        <Text
+                          style={[styles.optionDescription, selected && styles.optionDescriptionSelected]}
+                          numberOfLines={1}
+                        >
+                          {item.description}
+                        </Text>
+                      ) : null}
+                    </View>
                     {selected && <Ionicons name="checkmark" size={20} color={colors.primary} />}
                   </Pressable>
                 );
@@ -162,8 +188,10 @@ const styles = StyleSheet.create({
   optionPressed: {
     opacity: 0.7,
   },
-  optionText: {
+  optionTextWrap: {
     flex: 1,
+  },
+  optionText: {
     color: colors.text,
     fontSize: 16,
     fontWeight: '700',
@@ -171,5 +199,14 @@ const styles = StyleSheet.create({
   optionTextSelected: {
     color: colors.primaryDark,
     fontWeight: '900',
+  },
+  optionDescription: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  optionDescriptionSelected: {
+    color: colors.primaryDark,
   },
 });

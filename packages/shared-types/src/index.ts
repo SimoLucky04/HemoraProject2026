@@ -42,6 +42,16 @@ export interface EmergencyBloodAlertDto {
   activeUntil: string | null;
 }
 
+// --- Notifiche d'emergenza (feed gestito dal backend) ----------------------
+// Scenario d'emergenza mostrato come notifica push simulata: solo titolo e
+// messaggio (più l'urgenza), così il client deve solo schedularlo.
+export interface EmergencyFeedItem {
+  id: string;
+  title: string;
+  body: string;
+  urgency: Urgency;
+}
+
 // --- Prenotazioni (gestite dal backend) ------------------------------------
 export type BookingStatus = 'Confermata' | 'Annullata';
 

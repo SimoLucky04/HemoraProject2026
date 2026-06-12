@@ -1,6 +1,6 @@
 # Hemora Mobile (`@hemora/mobile`)
 
-App Expo / React Native di Hemora, parte del monorepo (`apps/mobile`). Local-first: profilo, QR, donazioni e prenotazioni restano sul dispositivo (AsyncStorage); il backend serve solo dati condivisi (centri ed emergenze).
+App Expo / React Native di Hemora, parte del monorepo (`apps/mobile`). Local-first: profilo, QR e storico donazioni restano sul dispositivo (AsyncStorage); il backend gestisce i dati condivisi (centri, emergenze) e le **prenotazioni**.
 
 ## Struttura `src/`
 
@@ -43,10 +43,13 @@ Poi premi `i` (iOS), `a` (Android) oppure inquadra il QR con Expo Go.
 
 ## Collegamento al backend
 
-L'app legge `EXPO_PUBLIC_HEMORA_API_URL` (default `http://localhost:4000`).
+L'app legge `EXPO_PUBLIC_HEMORA_API_URL` da `.env` (default `http://localhost:4000`). Expo **inlina** le variabili `EXPO_PUBLIC_*` nel bundle: dopo ogni modifica al `.env` riavvia con **`npx expo start -c`**, altrimenti il valore vecchio resta in cache.
 
-- **Simulatore/emulatore**: nessuna configurazione.
-- **Telefono fisico**: copia `.env.example` in `.env` e usa l'IP locale del Mac.
+- **Simulatore/emulatore**: nessuna configurazione (`localhost:4000`).
+- **Telefono fisico, stessa WiFi**: `http://<IP-del-Mac>:8080` (Docker) o `:4000` (`backend:dev`). IP del Mac: `ipconfig getifaddr en0`.
+- **Qualsiasi rete (consigliato)**: dalla root lancia `npm run dev:tunnel` — avvia il tunnel Cloudflare, scrive l'URL `https://….trycloudflare.com` in questo `.env` e fa partire Expo con cache pulita, tutto in un comando. Funziona anche su reti con *client isolation* (WiFi universitaria). Dettagli e versione manuale: [infra/README.md](../../infra/README.md).
+
+> Le **prenotazioni** passano dal backend: senza connessione non si creano (centri ed emergenze hanno invece un fallback ai dati mock locali).
 
 ## Monorepo / Metro
 

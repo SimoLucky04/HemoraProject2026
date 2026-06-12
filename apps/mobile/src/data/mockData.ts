@@ -110,7 +110,7 @@ export const mockCenters: CollectionCenter[] = [
 
 export const mockNotifications: EmergencyNotification[] = [
   {
-    id: 'notification_1',
+    id: 'welcome',
     centerName: 'Benvenuto in Hemora',
     requestedGroup: '',
     rh: '',

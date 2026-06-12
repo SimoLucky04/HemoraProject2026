@@ -40,13 +40,21 @@ export function getBloodType(profile: HealthProfile) {
   return `${profile.bloodGroup || '?'}${profile.rh || ''}`;
 }
 
-export function getMissingEmergencyFields(profile: HealthProfile) {
+// Dati essenziali del profilo: gli stessi della card "Dati essenziali" (nome,
+// cognome, data di nascita, gruppo, Rh). Usati per sbloccare le prenotazioni.
+export function getMissingEssentialFields(profile: HealthProfile) {
   const missing: string[] = [];
   if (!profile.firstName.trim()) missing.push('nome');
   if (!profile.lastName.trim()) missing.push('cognome');
   if (!profile.birthDate.trim()) missing.push('data di nascita');
   if (!profile.bloodGroup) missing.push('gruppo sanguigno');
   if (!profile.rh) missing.push('fattore Rh');
+  return missing;
+}
+
+// Per il QR: dati essenziali + un contatto di emergenza.
+export function getMissingEmergencyFields(profile: HealthProfile) {
+  const missing = getMissingEssentialFields(profile);
   if (profile.emergencyContacts.length === 0) missing.push('contatto emergenza');
   return missing;
 }

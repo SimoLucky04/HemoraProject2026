@@ -51,12 +51,9 @@ export function hasDonationOnDate(donations: Donation[], dateISO: string): boole
   return donations.some((donation) => donation.date === dateISO);
 }
 
-// Prenotazione attiva (Confermata) gia presente per quel tipo.
-export function getActiveBookingForType(bookings: Booking[], type: DonationType): Booking | undefined {
-  return bookings.find((booking) => booking.status === 'Confermata' && booking.type === type);
-}
-
-// Prenotazione attiva nello stesso giorno e ora (qualsiasi tipo).
-export function getSlotConflict(bookings: Booking[], dateTime: string): Booking | undefined {
-  return bookings.find((booking) => booking.status === 'Confermata' && booking.dateTime.slice(0, 13) === dateTime.slice(0, 13));
+// Prenotazione attiva (Confermata) gia presente, indipendentemente dal tipo:
+// si puo avere una sola prenotazione alla volta (coerente con l'idoneita —
+// non si possono pianificare due donazioni ravvicinate).
+export function getActiveBooking(bookings: Booking[]): Booking | undefined {
+  return bookings.find((booking) => booking.status === 'Confermata');
 }

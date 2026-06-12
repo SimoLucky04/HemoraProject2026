@@ -8,6 +8,8 @@ import { ELIGIBILITY_REMINDER_DAYS, LONG_CYCLE_TYPES, REMINDER_TYPES } from './n
 // Orario in cui far scattare i promemoria locali (notifiche push del telefono).
 const REMINDER_HOUR = 9;
 const ANDROID_CHANNEL_ID = 'donation-reminders';
+// Canale separato ad alta priorità per le (simulazioni di) emergenza sangue.
+export const EMERGENCY_CHANNEL_ID = 'emergency-alerts';
 
 // Le notifiche programmate restano in coda anche ad app chiusa: vanno mostrate
 // dal sistema operativo. Se l'app e in primo piano, le mostriamo comunque.
@@ -43,6 +45,17 @@ export async function ensureNotificationPermissions(): Promise<boolean> {
 
   const requested = await Notifications.requestPermissionsAsync();
   return isGranted(requested);
+}
+
+// Canale Android dedicato alle emergenze (importanza alta = heads-up). Su iOS
+// non esistono canali: è una no-op. Da chiamare prima di notificare un'emergenza.
+export async function ensureEmergencyChannel(): Promise<void> {
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync(EMERGENCY_CHANNEL_ID, {
+      name: 'Emergenze sangue',
+      importance: Notifications.AndroidImportance.HIGH,
+    });
+  }
 }
 
 function buildTriggerDate(dateISO: string, hour: number) {

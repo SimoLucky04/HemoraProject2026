@@ -1,7 +1,7 @@
 import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../src/app';
-import { demoCenters, demoEmergencyAlerts, MemoryStore } from '../src/data/memoryStore';
+import { demoCenters, demoEmergencyAlerts, demoEmergencyFeed, MemoryStore } from '../src/data/memoryStore';
 
 let app: ReturnType<typeof createApp>;
 
@@ -115,6 +115,16 @@ describe('Hemora backend API', () => {
     await request(app).get('/api/donation-eligibility?type=Plasma&lastType=Boh').expect(400);
   });
 
+  it('returns the emergency feed for push simulation', async () => {
+    const response = await request(app).get('/api/emergency-feed').expect(200);
+
+    expect(response.body.data).toHaveLength(demoEmergencyFeed.length);
+    expect(response.body.data[0]).toMatchObject({
+      id: demoEmergencyFeed[0].id,
+      title: demoEmergencyFeed[0].title,
+    });
+  });
+
   it('returns 404 for unknown routes', async () => {
     const response = await request(app).get('/api/unknown').expect(404);
 
@@ -223,20 +233,44 @@ describe('Hemora bookings API', () => {
       .expect(409);
   });
 
-  it('rejects a slot conflict on the same day and hour', async () => {
-    const slot = futureWeekdaySlot(9);
+  it('allows only one active booking at a time (any type or slot)', async () => {
     await request(app)
       .post('/api/bookings')
       .set(USER)
-      .send({ centerId: 'center_1', type: 'Plasma', dateTime: slot })
+      .send({ centerId: 'center_1', type: 'Plasma', dateTime: futureWeekdaySlot(9) })
       .expect(201);
 
-    // Stesso slot, tipo diverso -> conflitto di slot.
+    // Tipo diverso E slot diverso: comunque rifiutata (una sola alla volta).
     await request(app)
       .post('/api/bookings')
       .set(USER)
-      .send({ centerId: 'center_1', type: 'Sangue intero', dateTime: slot })
+      .send({ centerId: 'center_2', type: 'Sangue intero', dateTime: futureWeekdaySlot(11) })
       .expect(409);
+  });
+
+  it('clears all bookings for the user (reset account) and unblocks new ones', async () => {
+    await request(app)
+      .post('/api/bookings')
+      .set(USER)
+      .send({ centerId: 'center_1', type: 'Plasma', dateTime: futureWeekdaySlot(9) })
+      .expect(201);
+
+    // DELETE senza id = cancella tutte le prenotazioni dell'utente.
+    await request(app).delete('/api/bookings').set(USER).expect(200);
+
+    const list = await request(app).get('/api/bookings').set(USER).expect(200);
+    expect(list.body.data).toHaveLength(0);
+
+    // Dopo il reset si può prenotare di nuovo (niente prenotazione "fantasma").
+    await request(app)
+      .post('/api/bookings')
+      .set(USER)
+      .send({ centerId: 'center_1', type: 'Sangue intero', dateTime: futureWeekdaySlot(10) })
+      .expect(201);
+  });
+
+  it('requires the user header to clear bookings', async () => {
+    await request(app).delete('/api/bookings').expect(400);
   });
 
   it('cancels a booking and is idempotent on a second delete', async () => {

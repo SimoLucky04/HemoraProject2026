@@ -6,11 +6,12 @@ API demo **local-first** per Hemora, parte del monorepo (`apps/backend`). Espone
 
 - centri di raccolta (elenco con filtro per posizione e dettaglio);
 - emergenze sangue, con filtro opzionale per compatibilità di gruppo/Rh e città;
-- regole e calcolo dell'idoneità alla prossima donazione, identici all'app.
+- regole e calcolo dell'idoneità alla prossima donazione, identici all'app;
+- **prenotazioni**: creazione/elenco/annullamento per utente, con validazione lato server (centro esistente, giorno feriale, slot 8–12, una prenotazione attiva per tipo, niente slot doppi). L'utente è identificato dall'header `X-User-Email`; le prenotazioni vivono in memoria per-utente (si azzerano al riavvio).
 
 ## Cosa NON gestisce (resta locale nell'app)
 
-Profilo sanitario, patologie, allergie, farmaci, note salvavita, contatti di emergenza, QR **e prenotazioni/storico donazioni** non passano dal backend: l'app è **local-first** (AsyncStorage).
+Profilo sanitario, patologie, allergie, farmaci, note salvavita, contatti di emergenza, QR **e storico donazioni** non passano dal backend: l'app è **local-first** (AsyncStorage). L'**idoneità** alla donazione resta valutata anche lato app, perché dipende dallo storico locale.
 
 ## Architettura (layered)
 
@@ -79,19 +80,26 @@ CORS_ORIGIN="*"
 ## API disponibili
 
 ```text
-GET /health
-GET /api/centers
-GET /api/centers?lat=40.6824&lon=14.7681&radiusKm=30
-GET /api/centers/:id
-GET /api/emergency-alerts
-GET /api/emergencies?bloodType=A&rh=positive&city=Salerno
-GET /api/donation-rules
-GET /api/donation-eligibility?type=Plasma&lastType=Sangue%20intero&lastDonationDate=2026-05-01
+GET    /health
+GET    /api/centers
+GET    /api/centers?lat=40.6824&lon=14.7681&radiusKm=30
+GET    /api/centers/:id
+GET    /api/emergency-alerts
+GET    /api/emergency-feed
+GET    /api/emergencies?bloodType=A&rh=positive&city=Salerno
+GET    /api/donation-rules
+GET    /api/donation-eligibility?type=Plasma&lastType=Sangue%20intero&lastDonationDate=2026-05-01
+GET    /api/bookings
+POST   /api/bookings
+DELETE /api/bookings           # cancella TUTTE le prenotazioni dell'utente (reset)
+DELETE /api/bookings/:id
 ```
 
 Note:
 
 - `/api/centers` accetta `lat`, `lon` e `radiusKm` per i centri più vicini; senza coordinate restituisce il dataset completo. È l'endpoint usato dall'app per la mappa.
-- `/api/emergency-alerts` restituisce le emergenze attive senza filtri ed è l'endpoint usato dall'app per le notifiche.
+- `/api/emergency-alerts` restituisce le emergenze attive senza filtri.
+- `/api/emergency-feed` restituisce gli scenari d'emergenza (titolo/messaggio) usati dall'app come pool per le notifiche push simulate: la "logica" degli scenari vive qui sul backend.
 - `/api/emergencies` accetta il fattore Rh sia come simbolo (`+`/`-`) sia come parola (`positive`/`negative`) e restituisce solo le emergenze per cui l'utente-donatore è compatibile con il gruppo richiesto.
 - `/api/donation-eligibility` calcola l'idoneità dato il tipo della prossima donazione e, opzionalmente, tipo e data dell'ultima (`lastType`, `lastDonationDate`). Senza ultima donazione l'utente è idoneo.
+- `/api/bookings` richiede l'header **`X-User-Email`** (identità utente, niente auth vera nella demo). `POST` valida il corpo `{ centerId, type, dateTime }` e risponde `400` (input non valido / centro inesistente) o `409` (esiste già una prenotazione attiva: una sola alla volta). `DELETE /:id` è idempotente: `200` se annullata, `404` se l'id non esiste. `DELETE /api/bookings` (senza id) cancella **tutte** le prenotazioni dell'utente: usato al reset dei dati account, così non restano prenotazioni "fantasma" lato server.

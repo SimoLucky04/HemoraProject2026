@@ -45,7 +45,9 @@ export type DonationsStackParamList = {
   DonazioniMain: undefined;
   StoricoDonazioni: undefined;
   Prenotazioni: undefined;
-  NuovaPrenotazione: { centerId?: string } | undefined;
+  NuovaPrenotazione:
+    | { centerId?: string; userLocation?: { latitude: number; longitude: number } }
+    | undefined;
 };
 
 const ProfileStack = createNativeStackNavigator<ProfileStackParamList>();

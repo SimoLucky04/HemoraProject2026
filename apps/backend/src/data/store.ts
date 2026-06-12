@@ -3,6 +3,7 @@ import type {
   Booking,
   CollectionCenter,
   EmergencyBloodAlertDto,
+  EmergencyFeedItem,
   RhFactor,
 } from '@hemora/shared-types';
 
@@ -33,6 +34,8 @@ export interface HemoraDataStore {
   getCenter(id: string): Promise<CollectionCenter | null>;
   listEmergencyAlerts(options?: ListEmergencyAlertsOptions): Promise<EmergencyBloodAlertDto[]>;
   listEmergencies(filter?: ListEmergenciesFilter): Promise<EmergencyBloodAlertDto[]>;
+  // Scenari d'emergenza per le notifiche push simulate (titolo + messaggio).
+  listEmergencyFeed(): Promise<EmergencyFeedItem[]>;
 }
 
 // Le prenotazioni sono l'unica parte scrivibile e per-utente del backend:
@@ -41,6 +44,8 @@ export interface BookingStore {
   listBookings(userId: string): Promise<Booking[]>;
   createBooking(userId: string, booking: Booking): Promise<Booking>;
   cancelBooking(userId: string, bookingId: string): Promise<boolean>;
+  // Cancella TUTTE le prenotazioni dell'utente (usata al reset dei dati account).
+  clearBookings(userId: string): Promise<void>;
 }
 
 // Store completo iniettato nell'app: dati condivisi (lettura) + prenotazioni.

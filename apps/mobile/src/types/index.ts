@@ -8,10 +8,11 @@ import type {
   CollectionCenter,
   CreateBookingInput,
   DonationType,
+  EmergencyFeedItem,
   Urgency,
 } from '@hemora/shared-types';
 
-export type { Booking, CollectionCenter, CreateBookingInput, DonationType, Urgency };
+export type { Booking, CollectionCenter, CreateBookingInput, DonationType, EmergencyFeedItem, Urgency };
 
 export type Sex = 'M' | 'F' | 'Altro';
 

@@ -72,6 +72,13 @@ npm run docker:tunnel:url      # stampa l'URL pubblico generato
 # in alternativa: docker compose logs tunnel  → cerca https://....trycloudflare.com
 ```
 
+**Automazione (consigliata):** `npm run dev:tunnel` esegue lo script
+[`scripts/start-dev.sh`](../scripts/start-dev.sh), che fa tutto in un comando:
+avvia i container col profilo `tunnel`, attende l'URL pubblico facendo *polling*
+dei log (niente attese fisse), lo scrive in `apps/mobile/.env`
+(`EXPO_PUBLIC_HEMORA_API_URL`) e avvia Expo con cache pulita. Con `--no-expo`
+(`bash scripts/start-dev.sh --no-expo`) si ferma prima di lanciare Expo.
+
 L'URL `https://<random>.trycloudflare.com` è raggiungibile da **qualsiasi
 dispositivo** (telefono, altro PC), senza installare nulla sul client e su
 qualsiasi rete. Note:
@@ -110,3 +117,7 @@ EXPO_PUBLIC_HEMORA_API_URL=http://<IP-del-tuo-PC>:8080
 # Rete con client isolation (es. universitaria) → usa l'URL del tunnel:
 EXPO_PUBLIC_HEMORA_API_URL=https://<random>.trycloudflare.com
 ```
+
+> Expo **inlina** le variabili `EXPO_PUBLIC_*` nel bundle: dopo ogni modifica al
+> `.env` riavvia Expo pulendo la cache con `npx expo start -c`, altrimenti l'app
+> continua a usare il valore precedente.

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppButton } from '@components/AppButton';
@@ -53,8 +53,17 @@ export function ProfileScreen() {
     <Screen safeAreaEdges={nestedScreenEdges} footer={<AppButton title="Salva dati essenziali" onPress={submit} />}>
       <Card>
         <SectionTitle>Dati essenziali</SectionTitle>
-        <Field label="Nome" value={profile.firstName} onChangeText={(value) => update('firstName', value)} />
-        <Field label="Cognome" value={profile.lastName} onChangeText={(value) => update('lastName', value)} />
+
+        {/* Nome e cognome affiancati per ridurre lo spazio verticale. */}
+        <View style={styles.row}>
+          <View style={styles.col}>
+            <Field label="Nome" value={profile.firstName} onChangeText={(value) => update('firstName', value)} />
+          </View>
+          <View style={styles.col}>
+            <Field label="Cognome" value={profile.lastName} onChangeText={(value) => update('lastName', value)} />
+          </View>
+        </View>
+
         <DatePickerField
           label="Data di nascita"
           value={profile.birthDate}
@@ -70,19 +79,25 @@ export function ProfileScreen() {
           onChange={(value) => update('sex', value)}
         />
 
-        <PillSelector
-          label="Gruppo sanguigno"
-          options={BLOOD_OPTIONS}
-          value={profile.bloodGroup}
-          onChange={(value) => update('bloodGroup', value)}
-        />
-
-        <PillSelector
-          label="Fattore Rh"
-          options={RH_OPTIONS}
-          value={profile.rh}
-          onChange={(value) => update('rh', value)}
-        />
+        {/* Gruppo sanguigno e Rh affiancati: insieme formano il gruppo completo. */}
+        <View style={styles.row}>
+          <View style={styles.col}>
+            <PillSelector
+              label="Gruppo sanguigno"
+              options={BLOOD_OPTIONS}
+              value={profile.bloodGroup}
+              onChange={(value) => update('bloodGroup', value)}
+            />
+          </View>
+          <View style={styles.col}>
+            <PillSelector
+              label="Fattore Rh"
+              options={RH_OPTIONS}
+              value={profile.rh}
+              onChange={(value) => update('rh', value)}
+            />
+          </View>
+        </View>
       </Card>
 
       <Card>
@@ -141,6 +156,15 @@ export function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  // Griglia a due colonne: i campi figli mantengono il loro margine verticale.
+  row: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    alignItems: 'flex-start',
+  },
+  col: {
+    flex: 1,
+  },
   menuHeader: {
     marginTop: spacing.xs,
     marginBottom: spacing.xs + 2,
