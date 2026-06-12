@@ -1,6 +1,6 @@
 # @hemora/shared-types
 
-Unica fonte di verità dei **tipi di dominio condivisi** tra app (`apps/mobile`) e backend (`apps/backend`): gruppo sanguigno, fattore Rh, tipo di donazione, centro di raccolta, emergenza sangue e **prenotazione** (`Booking`, `CreateBookingInput`).
+Unica fonte di verità dei **tipi di dominio condivisi** tra app (`apps/mobile`) e backend (`apps/backend`): gruppo sanguigno, fattore Rh, tipo di donazione, centro di raccolta, emergenza sangue (`EmergencyBloodAlertDto`), scenari del **feed emergenze** per le notifiche push (`EmergencyFeedItem`) e **prenotazioni** (`Booking`, `CreateBookingInput`).
 
 Consumato come dipendenza di workspace:
 

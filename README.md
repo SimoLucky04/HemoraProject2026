@@ -2,7 +2,7 @@
 
 App Expo/React Native per il progetto universitario Hemora, organizzata come **monorepo npm workspaces**.
 
-Hemora usa un'impostazione local-first: profilo sanitario, QR e storico donazioni restano sul dispositivo in AsyncStorage. Il backend demo gestisce i dati condivisi e simulati — centri di raccolta, alert emergenza sangue e **prenotazioni** (identificate dall'email utente).
+Hemora usa un'impostazione local-first: profilo sanitario, QR e storico donazioni restano sul dispositivo in AsyncStorage. Il backend demo gestisce i dati condivisi e simulati — centri di raccolta, emergenze sangue (compreso il feed usato per le notifiche push) e **prenotazioni** (identificate dall'email utente).
 
 ## 🚀 Avvio rapido del backend
 
@@ -178,4 +178,4 @@ Dettagli completi in [apps/backend/README.md](apps/backend/README.md). Nessun da
 
 ## Nota
 
-Slot, notifiche e prenotazioni sono simulati per il progetto universitario: le prenotazioni sono gestite dal backend demo (in memoria, identificate dall'email utente). Geolocalizzazione reale, cifratura locale e autenticazione biometrica restano step successivi.
+Slot, notifiche — incluse le **emergenze push** (scenari presi dal feed del backend e mostrati a caso, uno alla volta) — e prenotazioni sono simulati per il progetto universitario: le prenotazioni sono gestite dal backend demo (in memoria, identificate dall'email utente). Geolocalizzazione reale, cifratura locale e autenticazione biometrica restano step successivi.

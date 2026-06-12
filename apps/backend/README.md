@@ -7,7 +7,8 @@ API demo **local-first** per Hemora, parte del monorepo (`apps/backend`). Espone
 - centri di raccolta (elenco con filtro per posizione e dettaglio);
 - emergenze sangue, con filtro opzionale per compatibilità di gruppo/Rh e città;
 - regole e calcolo dell'idoneità alla prossima donazione, identici all'app;
-- **prenotazioni**: creazione/elenco/annullamento per utente, con validazione lato server (centro esistente, giorno feriale, slot 8–12, una prenotazione attiva per tipo, niente slot doppi). L'utente è identificato dall'header `X-User-Email`; le prenotazioni vivono in memoria per-utente (si azzerano al riavvio).
+- **prenotazioni**: creazione/elenco/annullamento per utente, con validazione lato server (centro esistente, giorno feriale, slot 8–12, **una sola prenotazione attiva alla volta**, qualsiasi tipo). L'utente è identificato dall'header `X-User-Email`; le prenotazioni vivono in memoria per-utente (si azzerano al riavvio);
+- **feed emergenze**: pool di scenari (titolo + messaggio + urgenza) che l'app usa per le notifiche push simulate. La "logica" degli scenari vive qui sul backend, non nell'app.
 
 ## Cosa NON gestisce (resta locale nell'app)
 
@@ -39,7 +40,8 @@ I tipi di dominio (gruppo, Rh, tipo donazione, centro, emergenza) arrivano da **
 Nessun database: tutto in memoria, così il progetto resta leggero.
 
 - centri di raccolta: dataset curato di strutture reali della Campania in `src/data/collectionCenters.ts`;
-- emergenze sangue: elenco demo in `src/data/memoryStore.ts`.
+- emergenze sangue (alert con compatibilità di gruppo/Rh): elenco demo in `src/data/memoryStore.ts`;
+- scenari del feed emergenze per le push simulate (`demoEmergencyFeed`): sempre in `src/data/memoryStore.ts`.
 
 ## Setup e avvio
 

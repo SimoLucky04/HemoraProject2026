@@ -49,7 +49,13 @@ L'app legge `EXPO_PUBLIC_HEMORA_API_URL` da `.env` (default `http://localhost:40
 - **Telefono fisico, stessa WiFi**: `http://<IP-del-Mac>:8080` (Docker) o `:4000` (`backend:dev`). IP del Mac: `ipconfig getifaddr en0`.
 - **Qualsiasi rete (consigliato)**: dalla root lancia `npm run dev:tunnel` — avvia il tunnel Cloudflare, scrive l'URL `https://….trycloudflare.com` in questo `.env` e fa partire Expo con cache pulita, tutto in un comando. Funziona anche su reti con *client isolation* (WiFi universitaria). Dettagli e versione manuale: [infra/README.md](../../infra/README.md).
 
-> Le **prenotazioni** passano dal backend: senza connessione non si creano (centri ed emergenze hanno invece un fallback ai dati mock locali).
+> **Cosa richiede il backend**: le **prenotazioni** e le **emergenze** (vedi sotto). Senza connessione non si creano prenotazioni e non scatta nessuna emergenza. I **centri di raccolta** hanno invece un fallback ai dati mock locali, così mappa ed elenco restano usabili offline.
+
+## Notifiche ed emergenze
+
+- **Elenco in-app (sezione Notifiche)**: mostra l'avviso di benvenuto (mock locale) e i **promemoria di idoneità**, derivati dallo storico donazioni locale. Le emergenze che scattano vengono salvate qui, esattamente come i promemoria di idoneità.
+- **Emergenze come push simulate**: a intervalli casuali (una alla volta) l'app chiede al backend uno scenario dal feed `GET /api/emergency-feed` e lo mostra sia come notifica push di sistema sia nell'elenco in-app. Gli scenari vivono **solo sul backend**: senza server non scatta nulla.
+- Dal pannello **Sviluppo → "Simula emergenza ora"** se ne può innescare una manualmente (utile per la demo).
 
 ## Monorepo / Metro
 
