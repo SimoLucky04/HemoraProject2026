@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { BloodCompatibilityGuide } from '@components/BloodCompatibilityGuide';
 import { EligibilityStatus } from '@components/EligibilityStatus';
 import { FeatureCard } from '@components/FeatureCard';
 import { nestedScreenEdges, Screen } from '@components/Screen';
@@ -51,6 +52,11 @@ export function DonationsHubScreen() {
         tintBg={colors.plasmaBg}
         onPress={() => navigation.navigate('Prenotazioni')}
       />
+
+      <View style={styles.sectionHeader}>
+        <SectionTitle>{'\n'}Compatibilità sangue</SectionTitle>
+      </View>
+      <BloodCompatibilityGuide />
     </Screen>
   );
 }

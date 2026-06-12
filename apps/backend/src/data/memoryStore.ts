@@ -55,13 +55,22 @@ export const demoEmergencyAlerts: EmergencyBloodAlertDto[] = [
 // Scenari d'emergenza per le notifiche push simulate. Centralizzati qui (lato
 // backend) così l'app deve solo schedularli. Aggiungi pure altri casi.
 export const demoEmergencyFeed: EmergencyFeedItem[] = [
-  { id: 'feed_0neg_salerno', title: '🩸 Carenza 0− · Salerno', body: 'Scorte critiche di 0− al Ruggi. Se sei idoneo, prenota una donazione.', urgency: 'Alta' },
-  { id: 'feed_abpos_napoli', title: '🩸 Piastrine AB+ · Napoli', body: 'Richiesta piastrine AB+ al Cardarelli. Ogni gruppo può aiutare.', urgency: 'Media' },
-  { id: 'feed_plasma_campania', title: '🩸 Plasma in calo · Campania', body: 'Scorte di plasma sotto soglia in regione: prenota una donazione di plasma.', urgency: 'Media' },
-  { id: 'feed_incidente_a2', title: '🚑 Incidente sulla A2', body: 'Maxi-richiesta di sangue dopo un incidente: servono A+ e 0− con urgenza.', urgency: 'Alta' },
-  { id: 'feed_neonatale', title: '👶 Emergenza neonatale', body: 'Richiesta urgente di sangue 0− per un reparto di neonatologia.', urgency: 'Alta' },
-  { id: 'feed_ustionati', title: '🔥 Centro grandi ustionati', body: 'Servono plasma e piastrine per pazienti ustionati: dona se idoneo.', urgency: 'Alta' },
-  { id: 'feed_talassemia', title: '🩸 Pazienti talassemici', body: 'Trasfusioni periodiche a rischio: serve sangue di tutti i gruppi.', urgency: 'Media' },
+  { id: 'feed_0neg_salerno', title: '🩸 Carenza 0− · Salerno', body: 'Scorte critiche di 0− al Ruggi d\'Aragona. Se sei idoneo, prenota subito una donazione.', urgency: 'Alta' },
+  { id: 'feed_abpos_napoli', title: '🩸 Piastrine AB+ · Napoli', body: 'Richiesta urgente di piastrine al Cardarelli. I donatori AB+ sono pregati di contattare il centro.', urgency: 'Media' },
+  { id: 'feed_plasma_campania', title: '🩸 Plasma in calo · Campania', body: 'Scorte regionali sotto la soglia di sicurezza. Richiesta disponibilità per donazione in aferesi.', urgency: 'Media' },
+  { id: 'feed_incidente_a2', title: '🚑 Incidente sulla A2', body: 'Maxi-emergenza a seguito di incidente stradale. Servono sacche di gruppo A+ e 0−.', urgency: 'Alta' },
+  { id: 'feed_neonatale', title: '👶 Emergenza neonatale', body: 'Il reparto TIN necessita di sangue 0− (CMV negativo) per trasfusioni pediatriche urgenti.', urgency: 'Alta' },
+  { id: 'feed_ustionati', title: '🔥 Centro grandi ustionati', body: 'Picco di ricoveri per ustioni gravi. Necessità immediata di plasma e concentrati piastrinici.', urgency: 'Alta' },
+  { id: 'feed_talassemia', title: '🩸 Pazienti talassemici', body: 'Rischio rinvio terapie trasfusionali periodiche. Si richiede sangue intero di tutti i gruppi.', urgency: 'Media' },
+
+
+  { id: 'feed_emergenza_estiva', title: '🏖️ Carenza estiva', body: 'Calo fisiologico delle donazioni. Carenza diffusa di sangue A− e B− su tutto il territorio regionale.', urgency: 'Media' },
+  { id: 'feed_trapianto_fegato', title: '🏥 Emergenza trapianto', body: 'Intervento epatico complesso in corso. Richiesta massiccia di emazie concentrate gruppo 0+.', urgency: 'Alta' },
+  { id: 'feed_caserta_bneg', title: '🩸 Allarme B− · Caserta', body: 'Scorte di gruppo B− esaurite all\'Ospedale Sant\'Anna e San Sebastiano. Donazione immediata richiesta.', urgency: 'Alta' },
+  { id: 'feed_chirurgia_ospedaledelmare', title: '⚕️ Blocco sale operatorie', body: 'Carenza di sacche 0+ all\'Ospedale del Mare. Interventi chirurgici programmati a rischio rinvio.', urgency: 'Alta' },
+  { id: 'feed_midollo_leucemia', title: '🧬 Tipizzazione midollare', body: 'Ricerca urgente di un donatore compatibile (registro IBMDR) per paziente oncoematologico.', urgency: 'Media' },
+  { id: 'feed_gruppi_rari', title: '🩸 Fenotipo raro', body: 'Paziente con anticorpi complessi necessita di sangue con fenotipo esteso specifico. Verifiche in corso sui donatori abituali.', urgency: 'Alta' },
+  { id: 'feed_scadenza_piastrine', title: '⏳ Scadenza piastrine', body: 'Le piastrine durano solo 5 giorni. Serve un ricambio continuo al polo oncologico Pascale. Prenota un\'aferesi.', urgency: 'Media' }
 ];
 
 function toRadians(value: number) {
