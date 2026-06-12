@@ -1,6 +1,6 @@
 # Orchestrazione Hemora: backend Node.js dietro un reverse proxy nginx,
-# entrambi su una rete Docker condivisa (hemora-net) raggiungibile dagli altri
-# container del PC.
+# entrambi su una rete Docker condivisa (hemora-net). L'host (e i dispositivi
+# sulla stessa LAN) accedono al backend passando da nginx sulla porta 8080.
 #
 #   docker compose up -d --build      avvia
 #   curl http://localhost:8080/health prova il forwarding (nginx -> backend)
@@ -41,22 +41,6 @@ services:
       - "${HEMORA_HTTP_PORT:-8080}:80"
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    networks:
-      - hemora-net
-    restart: unless-stopped
-
-  # Tunnel pubblico DAVANTI a nginx: aggira reti con "client isolation"
-  # (es. WiFi universitaria) dove i dispositivi non si vedono tra loro sulla LAN.
-  # Opt-in: parte solo con il profilo "tunnel".
-  #   docker compose --profile tunnel up -d --build
-  #   docker compose logs tunnel   → mostra l'URL https://....trycloudflare.com
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    container_name: hemora-tunnel
-    profiles: ["tunnel"]
-    depends_on:
-      - nginx
-    command: tunnel --no-autoupdate --url http://nginx:80
     networks:
       - hemora-net
     restart: unless-stopped

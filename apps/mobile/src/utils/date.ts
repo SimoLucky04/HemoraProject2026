@@ -20,13 +20,6 @@ export function calculateAge(birthDate: string) {
   return age;
 }
 
-export function isFutureDate(dateString: string) {
-  const date = new Date(`${dateString}T12:00:00`);
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
-  return date.getTime() > today.getTime();
-}
-
 export function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }

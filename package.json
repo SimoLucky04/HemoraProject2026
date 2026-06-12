@@ -18,10 +18,7 @@
     "typecheck": "npm run shared:build && npm run typecheck -w @hemora/mobile && npm run typecheck -w @hemora/backend",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f",
-    "docker:tunnel": "docker compose --profile tunnel up -d --build",
-    "docker:tunnel:url": "docker compose logs tunnel | grep -Eo 'https://[a-z0-9-]+\\.trycloudflare\\.com' | tail -1",
-    "dev:tunnel": "bash scripts/start-dev.sh"
+    "docker:logs": "docker compose logs -f"
   },
   "devDependencies": {
     "typescript": "5.9.3"

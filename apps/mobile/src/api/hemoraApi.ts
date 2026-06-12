@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { Booking, CollectionCenter, CreateBookingInput, EmergencyFeedItem } from '@app-types';
 
 declare const process: {
@@ -6,7 +7,38 @@ declare const process: {
   };
 };
 
-const HEMORA_API_URL = process.env?.EXPO_PUBLIC_HEMORA_API_URL || 'http://localhost:4000';
+// Porta pubblicata da nginx sull'host (vedi docker-compose.yml: "8080:80").
+const NGINX_PORT = 8080;
+
+// Host:porta del bundler Metro a cui questo dispositivo e gia connesso: coincide
+// con l'IP del Mac nella rete CORRENTE. Lo deduciamo da expo-constants, cosi
+// l'indirizzo del backend SEGUE la rete da solo (cambi WiFi/hotspot -> cambia
+// l'IP) e funziona sia col simulatore iOS (stessa macchina) sia col telefono
+// fisico sulla stessa LAN, senza modificare il .env a mano.
+function getDevServerHost(): string | undefined {
+  const expoGoConfig = (Constants as { expoGoConfig?: { debuggerHost?: string } }).expoGoConfig;
+  const hostUri = Constants.expoConfig?.hostUri ?? expoGoConfig?.debuggerHost;
+  if (!hostUri) return undefined;
+  // Tiene solo l'host, scarta la porta di Metro (es. 8081/19000).
+  const host = hostUri.split(':')[0];
+  return host || undefined;
+}
+
+// Base URL del backend, in ordine di precedenza:
+//   1) EXPO_PUBLIC_HEMORA_API_URL nel .env  -> override esplicito (IP/host fisso)
+//   2) IP del Mac (da Metro) + porta nginx  -> AUTO, segue la rete corrente
+//   3) http://localhost:8080                -> fallback (build senza dev server)
+function resolveApiBaseUrl(): string {
+  const explicit = process.env?.EXPO_PUBLIC_HEMORA_API_URL?.trim();
+  if (explicit) return explicit;
+
+  const host = getDevServerHost();
+  if (host) return `http://${host}:${NGINX_PORT}`;
+
+  return `http://localhost:${NGINX_PORT}`;
+}
+
+const HEMORA_API_URL = resolveApiBaseUrl();
 
 type ApiListResponse<T> = {
   data: T[];

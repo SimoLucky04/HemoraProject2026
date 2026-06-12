@@ -10,10 +10,6 @@ export const WAIT_DAYS: Record<DonationType, Record<DonationType, number>> = {
   Piastrine: { 'Sangue intero': 14, Plasma: 14, Piastrine: 14 },
 };
 
-export function getWaitDays(lastType: DonationType, nextType: DonationType): number {
-  return WAIT_DAYS[lastType][nextType];
-}
-
 // Prossima idoneita per una donazione dello STESSO tipo: valore informativo
 // salvato sulla singola donazione (la logica vera e cross-tipo, vedi donationRules).
 export function calculateNextEligibilityDate(date: string, type: DonationType) {

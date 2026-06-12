@@ -68,7 +68,7 @@ export function AdminToolsScreen() {
     } else {
       Alert.alert(
         'Backend non raggiungibile',
-        'Gli scenari d\'emergenza arrivano dal backend: avvialo (Docker/tunnel) e riprova.'
+        'Gli scenari d\'emergenza arrivano dal backend: avvialo (npm run docker:up) e riprova.'
       );
     }
   }

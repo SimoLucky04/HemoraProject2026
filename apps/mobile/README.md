@@ -43,11 +43,14 @@ Poi premi `i` (iOS), `a` (Android) oppure inquadra il QR con Expo Go.
 
 ## Collegamento al backend
 
-L'app legge `EXPO_PUBLIC_HEMORA_API_URL` da `.env` (default `http://localhost:4000`). Expo **inlina** le variabili `EXPO_PUBLIC_*` nel bundle: dopo ogni modifica al `.env` riavvia con **`npx expo start -c`**, altrimenti il valore vecchio resta in cache.
+Di default l'app **deduce da sola** l'IP del Mac dall'host del bundler Metro e lo usa con la porta di nginx (`8080`): col backend in Docker (`npm run docker:up`) non serve configurare nulla, né sul simulatore né sul telefono fisico sulla stessa WiFi. L'indirizzo segue la rete in automatico.
 
-- **Simulatore/emulatore**: nessuna configurazione (`localhost:4000`).
-- **Telefono fisico, stessa WiFi**: `http://<IP-del-Mac>:8080` (Docker) o `:4000` (`backend:dev`). IP del Mac: `ipconfig getifaddr en0`.
-- **Qualsiasi rete (consigliato)**: dalla root lancia `npm run dev:tunnel` — avvia il tunnel Cloudflare, scrive l'URL `https://….trycloudflare.com` in questo `.env` e fa partire Expo con cache pulita, tutto in un comando. Funziona anche su reti con *client isolation* (WiFi universitaria). Dettagli e versione manuale: [infra/README.md](../../infra/README.md).
+Per forzare un indirizzo imposta `EXPO_PUBLIC_HEMORA_API_URL` in `.env` (ha la precedenza sull'auto-detect). Expo **inlina** le variabili `EXPO_PUBLIC_*` nel bundle: dopo ogni modifica al `.env` riavvia con **`npx expo start -c`**, altrimenti il valore vecchio resta in cache.
+
+- **Docker (`docker:up`)**: nessuna configurazione (auto, porta 8080).
+- **Senza Docker (`backend:dev`, porta 4000)**: `EXPO_PUBLIC_HEMORA_API_URL=http://<IP-del-Mac>:4000` (IP del Mac: `ipconfig getifaddr en0`).
+
+Dettagli e override: [infra/README.md](../../infra/README.md).
 
 > **Cosa richiede il backend**: le **prenotazioni** e le **emergenze** (vedi sotto). Senza connessione non si creano prenotazioni e non scatta nessuna emergenza. I **centri di raccolta** hanno invece un fallback ai dati mock locali, così mappa ed elenco restano usabili offline.
 

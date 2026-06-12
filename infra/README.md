@@ -54,41 +54,14 @@ networks:
 ## Accesso da altri dispositivi della rete
 
 Sulla stessa LAN basta l'IP del PC: dal telefono/altro PC apri
-`http://<IP-del-PC>:8080/health`.
+`http://<IP-del-PC>:8080/health` (IP da `ipconfig getifaddr en0`).
 
-**Reti con "client isolation"** (tipiche WiFi universitarie/aziendali/guest): gli
-access point bloccano il traffico **da dispositivo a dispositivo**, quindi l'IP
-LAN del PC è irraggiungibile dagli altri client — anche se la porta è esposta e
-il firewall è spento. Non è un problema risolvibile esponendo di più sulla LAN:
-il blocco è a livello di rete.
-
-La soluzione è un **tunnel** che passa da internet (in uscita, non bloccato dal
-client isolation). È incluso nel compose come servizio `tunnel` (Cloudflare),
-messo **davanti a nginx** e attivabile a richiesta:
-
-```bash
-npm run docker:tunnel          # = docker compose --profile tunnel up -d --build
-npm run docker:tunnel:url      # stampa l'URL pubblico generato
-# in alternativa: docker compose logs tunnel  → cerca https://....trycloudflare.com
-```
-
-**Automazione (consigliata):** `npm run dev:tunnel` esegue lo script
-[`scripts/start-dev.sh`](../scripts/start-dev.sh), che fa tutto in un comando:
-avvia i container col profilo `tunnel`, attende l'URL pubblico facendo *polling*
-dei log (niente attese fisse), lo scrive in `apps/mobile/.env`
-(`EXPO_PUBLIC_HEMORA_API_URL`) e avvia Expo con cache pulita. Con `--no-expo`
-(`bash scripts/start-dev.sh --no-expo`) si ferma prima di lanciare Expo.
-
-L'URL `https://<random>.trycloudflare.com` è raggiungibile da **qualsiasi
-dispositivo** (telefono, altro PC), senza installare nulla sul client e su
-qualsiasi rete. Note:
-
-- l'URL **cambia a ogni riavvio** del tunnel ed è **pubblico** (chi ha il link
-  accede): va benissimo per demo/sviluppo, non per la produzione;
-- per un URL stabile serve un account Cloudflare e un *named tunnel*.
-
-> Alternativa peer-to-peer privata: [Tailscale](https://tailscale.com) installato
-> su entrambi i dispositivi (usa poi `http://<tailscale-ip>:8080`).
+> **Reti con "client isolation"** (tipiche WiFi universitarie/aziendali/guest):
+> gli access point bloccano il traffico **da dispositivo a dispositivo**, quindi
+> l'IP LAN del PC è irraggiungibile dagli altri client — anche se la porta è
+> esposta e il firewall è spento. È un blocco a livello di rete, non risolvibile
+> esponendo di più sulla LAN: in quel caso usa un **hotspot** del telefono o una
+> rete domestica.
 
 ## Configurazione
 
@@ -107,15 +80,12 @@ Variabili (opzionali) lette da `docker compose`:
 
 ## App mobile
 
-Per far puntare l'app al backend tramite il proxy, imposta in
-`apps/mobile/.env`:
+Di default l'app **rileva da sola** l'IP del PC dall'host del bundler Metro e usa
+la porta di nginx (`8080`): sulla stessa LAN non serve configurare nulla. Per
+forzare un indirizzo fisso imposta in `apps/mobile/.env`:
 
 ```
-# Stessa LAN (senza client isolation):
 EXPO_PUBLIC_HEMORA_API_URL=http://<IP-del-tuo-PC>:8080
-
-# Rete con client isolation (es. universitaria) → usa l'URL del tunnel:
-EXPO_PUBLIC_HEMORA_API_URL=https://<random>.trycloudflare.com
 ```
 
 > Expo **inlina** le variabili `EXPO_PUBLIC_*` nel bundle: dopo ogni modifica al

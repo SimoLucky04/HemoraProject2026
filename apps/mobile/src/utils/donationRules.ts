@@ -37,20 +37,6 @@ export function isEligibleForType(donations: Donation[], nextType: DonationType,
   return !date || onISO >= date;
 }
 
-// Per la registrazione: idoneita derivata solo dalle donazioni precedenti alla
-// data indicata (gestisce anche l'inserimento di donazioni passate).
-export function getEligibilityBefore(donations: Donation[], nextType: DonationType, beforeISO: string): string | null {
-  return getEligibilityDateForType(
-    donations.filter((donation) => donation.date < beforeISO),
-    nextType
-  );
-}
-
-// Esiste gia una donazione registrata in quella data (qualsiasi tipo).
-export function hasDonationOnDate(donations: Donation[], dateISO: string): boolean {
-  return donations.some((donation) => donation.date === dateISO);
-}
-
 // Prenotazione attiva (Confermata) gia presente, indipendentemente dal tipo:
 // si puo avere una sola prenotazione alla volta (coerente con l'idoneita —
 // non si possono pianificare due donazioni ravvicinate).

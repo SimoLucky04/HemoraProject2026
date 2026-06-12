@@ -25,12 +25,6 @@ import { SettingsScreen } from '@screens/SettingsScreen';
 import { AdminToolsScreen } from '@screens/AdminToolsScreen';
 import { colors, radius, spacing } from '@theme';
 
-export type MainTabsParamList = {
-  Donazioni: undefined;
-  Home: undefined;
-  Profilo: undefined;
-};
-
 export type ProfileStackParamList = {
   ProfiloMain: undefined;
   Patologie: undefined;

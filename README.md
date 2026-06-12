@@ -36,9 +36,7 @@ HemoraProject2026/
 │   └── shared-types/    # @hemora/shared-types — tipi di dominio condivisi FE/BE
 ├── infra/
 │   └── nginx/           # reverse proxy nginx davanti al backend
-├── scripts/
-│   └── start-dev.sh     # avvio one-command: Docker + tunnel + .env + Expo
-├── docker-compose.yml   # orchestrazione backend + nginx + tunnel (rete hemora-net)
+├── docker-compose.yml   # orchestrazione backend + nginx (rete hemora-net)
 ├── package.json         # workspace root (npm workspaces)
 └── tsconfig.base.json   # opzioni TypeScript comuni
 ```
@@ -85,34 +83,19 @@ npm run start -w @hemora/mobile
 
 ### Collegare l'app al backend
 
-L'app legge l'URL dell'API da `EXPO_PUBLIC_HEMORA_API_URL` (in `apps/mobile/.env`), altrimenti usa `http://localhost:4000`. Expo **inlina** le variabili `EXPO_PUBLIC_*` al momento del bundle: dopo ogni modifica al `.env` riavvia Expo pulendo la cache con **`npx expo start -c`**.
+Con il backend in Docker (`npm run docker:up`, nginx sulla porta `8080`) **non serve configurare nulla**: l'app deduce da sola l'IP del Mac dall'host del bundler Metro a cui il dispositivo è già connesso e lo usa con la porta di nginx (`8080`). L'indirizzo **segue la rete automaticamente** (cambi WiFi/hotspot → cambia l'IP) e funziona sia col simulatore iOS sia col telefono fisico sulla stessa LAN.
 
-| Scenario | Valore di `EXPO_PUBLIC_HEMORA_API_URL` |
+| Scenario | Configurazione |
 |---|---|
-| Simulatore iOS / emulatore Android | `http://localhost:4000` (default, nessuna configurazione) |
-| Telefono fisico, stessa WiFi del Mac | `http://<IP-del-Mac>:8080` (Docker) o `:4000` (`backend:dev`) — IP da `ipconfig getifaddr en0` |
-| **Qualsiasi rete** (anche WiFi con *client isolation*) | URL del **tunnel Cloudflare** `https://<random>.trycloudflare.com` |
+| Docker (`docker:up`) — simulatore o telefono sulla stessa WiFi | nessuna (auto, porta 8080) |
+| Senza Docker (`backend:dev`, porta 4000) | `EXPO_PUBLIC_HEMORA_API_URL=http://<IP-del-Mac>:4000` |
+| Forzare un IP/host fisso | `EXPO_PUBLIC_HEMORA_API_URL=http://<IP>:8080` |
 
-**Tunnel Cloudflare — consigliato, funziona da qualsiasi rete e dispositivo.**
+Per forzare un indirizzo imposta `EXPO_PUBLIC_HEMORA_API_URL` in `apps/mobile/.env` (ha la precedenza sull'auto-detect; IP del Mac da `ipconfig getifaddr en0`). Expo **inlina** le variabili `EXPO_PUBLIC_*` al momento del bundle: dopo ogni modifica al `.env` riavvia Expo pulendo la cache con **`npx expo start -c`**.
 
-Modo più semplice, un solo comando:
+> Le reti con *client isolation* (alcune WiFi universitarie/guest) bloccano il traffico tra dispositivi sulla LAN: in quel caso usa un **hotspot** del telefono o una rete domestica.
 
-```bash
-npm run dev:tunnel
-```
-
-Lo script [`scripts/start-dev.sh`](scripts/start-dev.sh) avvia backend + nginx + tunnel, attende l'URL pubblico, lo scrive automaticamente in `apps/mobile/.env` e lancia Expo con cache pulita. Aggiungi `--no-expo` per fermarti prima dell'avvio di Expo (`bash scripts/start-dev.sh --no-expo`).
-
-In alternativa, manualmente:
-
-```bash
-npm run docker:tunnel        # avvia backend + nginx + tunnel
-npm run docker:tunnel:url    # stampa l'URL pubblico https://....trycloudflare.com
-```
-
-…poi copia l'URL in `apps/mobile/.env` e rilancia `npx expo start -c`. L'URL del tunnel *free* **cambia a ogni riavvio** del tunnel (lo script lo riscrive da solo a ogni esecuzione). Dettagli e opzione con URL stabile: [infra/README.md](infra/README.md).
-
-Se la variabile non è configurata o il backend non risponde, l'app resta utilizzabile con i dati locali/mock (le **prenotazioni**, però, richiedono il backend).
+Se il backend non risponde, l'app resta utilizzabile con i dati locali/mock (le **prenotazioni**, però, richiedono il backend).
 
 ## Altri script (dalla root)
 
@@ -136,23 +119,15 @@ curl http://localhost:8080/api/centers
 npm run docker:down    # stop
 ```
 
-Per raggiungere il backend da **qualsiasi rete** (telefono su WiFi diversa, reti con *client isolation*) c'è un tunnel pubblico Cloudflare opzionale, davanti a nginx. Il modo più rapido è `npm run dev:tunnel` (avvia tutto, scrive l'URL nel `.env` e lancia Expo); manualmente:
-
-```bash
-npm run docker:tunnel      # avvia anche il tunnel
-npm run docker:tunnel:url  # stampa l'URL https://....trycloudflare.com
-```
-
-Dettagli, override, tunnel e come collegare altri container alla rete: [infra/README.md](infra/README.md).
+Per raggiungere il backend da un altro dispositivo sulla **stessa LAN** (telefono, altro PC) basta l'IP del PC: apri `http://<IP-del-PC>:8080/health` (IP da `ipconfig getifaddr en0`). Dettagli, override e come collegare altri container alla rete: [infra/README.md](infra/README.md).
 
 ## Navigazione dell'app
 
-La barra inferiore ha 4 sezioni principali:
+La barra inferiore ha 3 sezioni principali:
 
-1. **Home** — riepilogo generale di profilo salvavita, donazioni, notifiche e prenotazioni.
-2. **Profilo** — dati essenziali, con sottosezioni: Patologie e allergie, Farmaci salvavita, Contatti emergenza, Dati opzionali, Impostazioni.
-3. **Donazioni** — hub con: Registra donazione, Storico donazioni, Centri raccolta, Prenotazioni.
-4. **Emergenza** — QR Code di emergenza leggibile offline.
+1. **Donazioni** — hub con stato di idoneità, Storico donazioni e Prenotazioni (con creazione di una nuova prenotazione).
+2. **Home** — riepilogo di profilo salvavita, donazioni, notifiche e prenotazioni, con il **QR Code di emergenza** leggibile offline.
+3. **Profilo** — dati essenziali, con sottosezioni: Patologie e allergie, Farmaci salvavita, Contatti emergenza, Dati opzionali, Impostazioni.
 
 ## Backend demo (sintesi)
 
