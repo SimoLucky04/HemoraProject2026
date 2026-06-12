@@ -1,6 +1,6 @@
 import React from 'react';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -38,7 +38,12 @@ export function SettingsScreen() {
       <Card>
         <View style={styles.hero}>
           <View style={styles.logoTile}>
-            <Ionicons name="water" size={30} color={colors.surface} />
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+              accessibilityIgnoresInvertColors
+            />
           </View>
           <View style={styles.heroText}>
             <Text style={styles.appName}>Hemora</Text>
@@ -98,9 +103,16 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: radius.lg,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
   },
   heroText: {
     flex: 1,
